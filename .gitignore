@@ -4,3 +4,6 @@
 *.ilk
 *.elf
 *.rpx
+*.d
+*.map
+*.lst
