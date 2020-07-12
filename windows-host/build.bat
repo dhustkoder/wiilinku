@@ -2,14 +2,14 @@
 set BUILD_TYPE=%1
 set RUN_AFTER_BUILD="%2"=="run"
 
-set INCLUDE_DIRS=/Isrc
+set INCLUDE_DIRS=/Isrc /I"C:\devkitPro\projects\wiiupcx\windows-host\externals\ViGEmClient\include"
+set INCLUDE_LIBS=/LIBPATH:"C:\devkitPro\projects\wiiupcx\windows-host\externals\ViGEmClient\lib\release\x64"
 set SRC=src\\*.c
-set LIBS=user32.lib gdi32.lib winmm.lib ws2_32.lib
-
+set LIBS=%INCLUDE_LIBS% user32.lib gdi32.lib winmm.lib ws2_32.lib setupapi.lib ViGEmClient.lib
 
 set CC=cl
 set CFLAGS=/D_CRT_SECURE_NO_WARNINGS /wd4028 /wd4214 /wd4047 /wd4210 /W4  %INCLUDE_DIRS%
-set LDFLAGS=/SUBSYSTEM:CONSOLE %LIBS%
+set LDFLAGS=%LIBS% /SUBSYSTEM:CONSOLE
 
 set CFLAGS_DEBUG=/Od /Zi /DEBUG:FULL /DDEBUG
 set LDFLAGS_DEBUG=

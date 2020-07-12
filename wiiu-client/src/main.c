@@ -16,6 +16,26 @@
 
 #define FRAME_HEAP_TAG (0x000DECAF)
 
+enum xusb_gamepad_button {
+    XUSB_GAMEPAD_DPAD_UP            = 0x0001,
+    XUSB_GAMEPAD_DPAD_DOWN          = 0x0002,
+    XUSB_GAMEPAD_DPAD_LEFT          = 0x0004,
+    XUSB_GAMEPAD_DPAD_RIGHT         = 0x0008,
+    XUSB_GAMEPAD_START              = 0x0010,
+    XUSB_GAMEPAD_BACK               = 0x0020,
+    XUSB_GAMEPAD_LEFT_THUMB         = 0x0040,
+    XUSB_GAMEPAD_RIGHT_THUMB        = 0x0080,
+    XUSB_GAMEPAD_LEFT_SHOULDER      = 0x0100,
+    XUSB_GAMEPAD_RIGHT_SHOULDER     = 0x0200,
+    XUSB_GAMEPAD_GUIDE              = 0x0400,
+    XUSB_GAMEPAD_A                  = 0x1000,
+    XUSB_GAMEPAD_B                  = 0x2000,
+    XUSB_GAMEPAD_X                  = 0x4000,
+    XUSB_GAMEPAD_Y                  = 0x8000
+};
+
+char send_buffer[32];
+
 int main(int argc, char **argv)
 {
 	WHBProcInit();
@@ -53,30 +73,48 @@ int main(int argc, char **argv)
 		OSScreenClearBufferEx(SCREEN_TV, 0x000000FF);
 		OSScreenClearBufferEx(SCREEN_DRC, 0x000000FF);
 		OSScreenPutFontEx(SCREEN_DRC, -4, 0, "!Hello World!");
-		if (connected) {
-			OSScreenPutFontEx(SCREEN_DRC, -4, 1, "Connected, Press A to Send Message, B to Disconnect");
-		} else {
-			OSScreenPutFontEx(SCREEN_DRC, -4, 1, "Press A to connect");
-		}
 
-		if (vpad_data.trigger & VPAD_BUTTON_A) {
-			if (!connected) {
+		if (connected) {
+			OSScreenPutFontEx(SCREEN_DRC, -4, 1, "Connected.");
+			OSScreenPutFontEx(SCREEN_DRC, -4, 2, send_buffer);
+			uint16_t buttons = 0x00;
+
+			if (vpad_data.hold & VPAD_BUTTON_A)
+				buttons |= XUSB_GAMEPAD_A;
+			if (vpad_data.hold & VPAD_BUTTON_B)
+				buttons |= XUSB_GAMEPAD_B;
+			if (vpad_data.hold & VPAD_BUTTON_X)
+				buttons |= XUSB_GAMEPAD_X;
+			if (vpad_data.hold & VPAD_BUTTON_Y)
+				buttons |= XUSB_GAMEPAD_Y;
+
+			if (vpad_data.hold & VPAD_BUTTON_DOWN)
+				buttons |= XUSB_GAMEPAD_DPAD_DOWN;
+			if (vpad_data.hold & VPAD_BUTTON_UP)
+				buttons |= XUSB_GAMEPAD_DPAD_UP;
+			if (vpad_data.hold & VPAD_BUTTON_LEFT)
+				buttons |= XUSB_GAMEPAD_DPAD_LEFT;
+			if (vpad_data.hold & VPAD_BUTTON_RIGHT)
+				buttons |= XUSB_GAMEPAD_DPAD_RIGHT;
+
+			int size = 0;
+			size += sprintf(send_buffer, "%.4X", buttons);
+			udp_send(send_buffer, size);
+		} else {
+			if (vpad_data.trigger & VPAD_BUTTON_A) {
 				if (udp_init("192.168.15.3", 4242)) {
 					connected = 1;
 				} else {
 					OSScreenPutFontEx(SCREEN_DRC, -4, 3, "Connection Failed...");
 					OSSleepTicks(10000000);
 				}
-			} else {
-				udp_print("Hello UDP CONNECTED");
 			}
+			OSScreenPutFontEx(SCREEN_DRC, -4, 1, "Press A to connect");
 		}
 
-		if (vpad_data.trigger & VPAD_BUTTON_HOME) {
+		if (vpad_data.trigger & VPAD_BUTTON_HOME)
 			break;
-		}
 
-		
 		// Flip buffers
 		DCFlushRange(ScreenBuffer0, sBufferSizeTV);
 		DCFlushRange(ScreenBuffer1, sBufferSizeDRC);
@@ -86,6 +124,7 @@ int main(int argc, char **argv)
 
 	}
 
+	udp_deinit();
 	WHBDeinitializeSocketLibrary();
 	OSScreenShutdown();
 	MEMFreeByStateToFrmHeap(heap, FRAME_HEAP_TAG);

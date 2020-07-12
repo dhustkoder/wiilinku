@@ -71,6 +71,20 @@ void udp_print(const char *str)
     udp_lock = 0;
 }
 
+void udp_send(uint8_t* data, int size)
+{
+    int len = size;
+    while (len > 0) {
+        int block = len < 1400 ? len : 1400; // take max 1400 bytes per UDP packet
+        int ret = send(udp_socket, data, block, 0);
+        if(ret < 0)
+            break;
+
+        len -= ret;
+        data += ret;
+    } 
+}
+
 void udp_printf(const char *format, ...)
 {
     if(udp_socket < 0) {
