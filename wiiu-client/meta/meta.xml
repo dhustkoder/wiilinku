@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>wiiupcx</name>
+  <coder>dhustkoder</coder>
+  <version>0.0.1</version>
+  <release_date>20200107000000</release_date>
+  <short_description>WiiU Gamepad as PC Controller</short_description>
+  <long_description>
+  	empty
+  </long_description>
+
+</app>

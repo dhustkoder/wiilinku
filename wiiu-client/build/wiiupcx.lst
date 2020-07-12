@@ -1,0 +1,216 @@
+         w __deregister_frame_info
+         w __register_frame_info
+         w _ITM_deregisterTMCloneTable
+         w _ITM_registerTMCloneTable
+02000000 T __init
+02000024 T __rpx_start
+02000050 00000048 T __eabi
+02000098 t deregister_tm_clones
+020000c8 t register_tm_clones
+02000104 t __do_global_dtors_aux
+020001d4 t frame_dummy
+02000218 000002c4 T main
+020005fc 000000c8 t udp_print.part.0
+020006d4 000000d8 T udp_init
+020007ec 00000014 T udp_print
+02000800 00000028 W __init_wut
+02000828 00000028 W __fini_wut
+02000850 00000004 T __syscall_lock_init
+02000854 00000004 T __syscall_lock_release
+02000858 00000004 T __syscall_lock_acquire
+0200085c 0000003c T __syscall_exit
+02000898 00000004 T __syscall_nanosleep
+0200089c 00000014 T __init_wut_newlib
+020008b0 00000004 T __fini_wut_newlib
+020008b4 000000d4 T __wut_nanosleep
+020009a8 00000004 T __init_wut_malloc
+020009ac 00000004 T __fini_wut_malloc
+020009b0 00000060 T _malloc_r
+02000a10 00000018 T _free_r
+02000a28 00000014 T _memalign_r
+02000a3c 00000160 T __init_wut_devoptab
+02000bfc 00000070 T __fini_wut_devoptab
+02000c7c 00000094 T __wut_fs_dirclose
+02000d30 00000164 T __wut_fs_seek
+02000ec4 00000094 T __wut_fs_dirreset
+02000f78 000000cc T __wut_fs_rmdir
+02001064 000001c4 T __wut_fs_open
+02001258 000001b0 T __wut_fs_write
+02001428 000000c0 T __wut_fs_chmod
+02001508 00000010 T __wut_fs_fchmod
+02001518 000000cc T __wut_fs_mkdir
+02001604 00000150 T __wut_fs_dirnext
+02001774 00000010 T __wut_fs_statvfs
+02001784 000000d4 T __wut_fs_ftruncate
+02001888 000000f8 T __wut_fs_rename
+020019a0 0000005c T WHBInitializeSocketLibrary
+02001a0c 00000050 T WHBDeinitializeSocketLibrary
+02001a6c 00000024 t procHomeButtonDenied
+02001a90 00000024 t procSaveCallback
+02001ac4 00000100 T WHBProcInit
+02001c14 00000028 T WHBProcShutdown
+02001c4c 00000004 T __init_wut_stdcpp
+02001c50 00000004 T __fini_wut_stdcpp
+02001c54 00000064 T __wut_lock_init
+02001cc8 00000038 T __wut_lock_acquire
+02001d10 00000038 T __wut_lock_release
+02001d58 00000190 T __wut_fs_stat
+02001f38 000000cc T __wut_fs_chdir
+02002024 000000e4 T __wut_fs_fstat
+02002128 00000010 T __wut_fs_link
+02002138 000001b4 T __wut_fs_read
+0200230c 000000d8 T __wut_fs_fixpath
+020023e4 0000005c T __wut_fs_translate_error
+02002440 00000090 T __wut_fs_close
+020024f0 000000cc T __wut_fs_unlink
+020025dc 00000090 T __wut_fs_fsync
+0200268c 00000138 T __wut_fs_diropen
+020027e4 000003bc T __udivdi3
+02002ba0 00000008 t null_write
+02002ba8 00000018 T setDefaultDevice
+02002bc0 00000134 T FindDevice
+02002cf4 00000044 T RemoveDevice
+02002d38 0000011c T AddDevice
+02002e54 0000009c T usleep
+02002ef0 00000238 T _concatenate_path
+02003128 000001b0 T chdir
+020032d8 00000064 T nanosleep
+0200333c 0000000c T __errno
+02003348 00000040 T exit
+02003388 00000018 T memalign
+020033a0 00000010 T malloc
+020033b0 00000010 T free
+020033c0 00000144 T memcpy
+02003504 000001bc T memset
+020036c0 00000144 T strchr
+02003804 00000090 T strcmp
+02003894 00000084 T strcpy
+02003918 00000080 T strlen
+02003998 000000e4 T strncmp
+02003a7c 00000128 T strncpy
+02003ba4 00000078 T strnlen
+02003c1c 0000006c T strrchr
+02003c88 000001a4 T __call_exitprocs
+02003e2c 00000028 T _exit
+02003e54 0000001c T __libc_lock_init
+02003e70 0000001c T __libc_lock_release
+02003e8c 0000001c T __libc_lock_acquire
+02003ea8 t __do_global_ctors_aux
+02003ef8 T __fini
+100000e8 00000070 D dotab_stdnull
+10000158 00000101 D _ctype_
+1000025c d __CTOR_LIST__
+10000260 d __CTOR_END__
+10000260 D __CTOR_END__
+10000260 D __CTOR_LIST__
+10000264 d __DTOR_LIST__
+10000268 D __DTOR_END__
+10000268 D __DTOR_LIST__
+1000026c D __EH_FRAME_BEGIN__
+1000026c d __EH_FRAME_BEGIN__
+100045b4 d __FRAME_END__
+100045b8 D __EH_FRAME_END__
+100045d8 D __TMC_END__
+100045d8 d __TMC_LIST__
+100045d8 00000004 d udp_socket
+100045e0 00000070 d __wut_fs_devoptab
+10004650 00000004 d defaultDevice
+10004654 00000040 D devoptab_list
+10004694 00001000 d _current_working_directory
+10005698 00000448 d impure_data
+10005ae0 D __sdata_start
+10005ae0 D __SDATA_START__
+10005ae0 00000004 D _global_impure_ptr
+10005ae4 00000004 D _impure_ptr
+10005ae8 D __bss_start
+10005ae8 D __sdata_end
+10005ae8 D __sdata2_end
+10005ae8 D __sdata2_start
+10005ae8 D __SDATA2_START__
+10005ae8 00000004 b udp_lock
+10005aec b completed.2
+10005af0 b dtor_idx.1
+10005af4 b object.0
+10005b0c 00000004 b __wut_fs_initialised
+10005b10 00000004 b isSocketInitialized
+10005b14 00000004 b numberOfSocketClients
+10005b18 00000004 b sFromHBL
+10005b1c 00000004 b sMainCore
+10005b20 00000004 b sRunning
+10005b24 00001000 b temp_cwd
+1000630c a _SDA2_BASE_
+10006b24 B __sbss_start
+10006b24 00000004 B __wut_exit
+10006b28 00000004 B __wut_devoptab_fs_client
+10006b2c 00000004 B __atexit_recursive_mutex
+10006b30 B __bss_end
+10006b30 B __sbss_end
+10006b30 B __SBSS_END__
+10006b30 B __sbss2_end
+10006b30 B __SBSS2_END__
+10006b30 B __sbss2_start
+10006b30 b _SDA_BASE_
+c0000018 T DCFlushRange
+c0000020 T FSAddClient
+c0000028 T FSChangeDir
+c0000030 T FSChangeMode
+c0000038 T FSCloseDir
+c0000040 T FSCloseFile
+c0000048 T FSDelClient
+c0000050 T FSFlushFile
+c0000058 T FSGetMountSource
+c0000060 T FSGetPosFile
+c0000068 T FSGetStatFile
+c0000070 T FSInit
+c0000078 T FSInitCmdBlock
+c0000080 T FSMakeDir
+c0000088 T FSMount
+c0000090 T FSOpenDir
+c0000098 T FSOpenFile
+c00000a0 T FSReadDir
+c00000a8 T FSReadFile
+c00000b0 T FSRemove
+c00000b8 T FSRename
+c00000c0 T FSRewindDir
+c00000c8 T FSSetPosFile
+c00000d0 T FSTruncateFile
+c00000d8 T FSWriteFile
+c00000e0 T MEMAllocFromFrmHeapEx
+c00000e8 T MEMFreeByStateToFrmHeap
+c00000f0 T MEMGetBaseHeapHandle
+c00000f8 T MEMRecordStateForFrmHeap
+c0000100 T OSEnableHomeButtonMenu
+c0000108 T OSGetCoreId
+c0000110 T OSGetSystemInfo
+c0000118 T OSGetTitleID
+c0000120 T OSInitMutex
+c0000128 T OSLockMutex
+c0000130 T OSSavesDone_ReadyToRelease
+c0000138 T OSScreenClearBufferEx
+c0000140 T OSScreenEnableEx
+c0000148 T OSScreenFlipBuffersEx
+c0000150 T OSScreenGetBufferSizeEx
+c0000158 T OSScreenInit
+c0000160 T OSScreenPutFontEx
+c0000168 T OSScreenSetBufferEx
+c0000170 T OSScreenShutdown
+c0000178 T OSSleepTicks
+c0000180 T OSUnlockMutex
+c0000188 T __rplwrap_exit
+c00001a0 T connect
+c00001a8 T inet_aton
+c00001b0 T send
+c00001b8 T socket
+c00001c0 T socket_lib_finish
+c00001c8 T socket_lib_init
+c00001d0 T socketclose
+c00001f8 T KPADInit
+c0000200 T WPADEnableURCC
+c0000220 T ProcUIInitEx
+c0000228 T ProcUIRegisterCallback
+c0000240 T SYSRelaunchTitle
+c0000260 T VPADInit
+c0000268 T VPADRead
+c0000288 R MEMAllocFromDefaultHeap
+c0000290 R MEMAllocFromDefaultHeapEx
+c0000298 R MEMFreeToDefaultHeap
