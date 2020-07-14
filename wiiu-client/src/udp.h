@@ -1,17 +1,7 @@
-#pragma once
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* A ripoff of logger.h */
-
+#ifndef WIIUPCX_UDP_H_
+#define WIIUPCX_UDP_H_
 int udp_init(const char * ip, unsigned short ipport);
 void udp_deinit(void);
-void udp_print(const char *str);
-void udp_send(uint8_t* data, int size);
-void udp_printf(const char *format, ...);
-
-#ifdef __cplusplus
-}
+int udp_send(uint8_t* data, int size);
+int udp_error(void);
 #endif

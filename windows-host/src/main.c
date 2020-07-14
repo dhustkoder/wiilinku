@@ -37,12 +37,12 @@ struct vigem_xbox_controller {
 	XUSB_REPORT report;
 } x360_pad;
 
+#define IN_CONN_RECV_BUF_SIZE (42)
 struct input_connection {
 	zed_net_socket_t socket;
 	zed_net_address_t sender;
+	char recv_buf[IN_CONN_RECV_BUF_SIZE];
 } in_conn;
-
-char recv_buffer[256];
 
 
 VOID CALLBACK xbox_controller_notification_handler(
@@ -154,15 +154,19 @@ static void update_vigem_xbox_controller_state(
 		x360_pad.report
 	);
 
-	if (ret != 0) {
-		printf("Error on vigem target update: %X", ret);
+	if (ret != VIGEM_ERROR_NONE) {
+		printf("Error on vigem target update: %X\n", ret);
 	}
 }
 
 
 static int initialize_zed_net(void)
 {
-	zed_net_init();
+	if (zed_net_init()) {
+		printf("error initializing zed net\n");
+		return 1;
+	}
+
 	if (zed_net_udp_socket_open(&in_conn.socket, 4242, 0)) {
 		printf("Error: %s\n", zed_net_get_error());
 		return 1;
@@ -183,8 +187,8 @@ static void run_input_recv_thread(void)
 		int bytes_read = zed_net_udp_socket_receive(
 			&in_conn.socket,
 			&in_conn.sender,
-			&recv_buffer,
-			sizeof(recv_buffer)
+			&in_conn.recv_buf[0],
+			IN_CONN_RECV_BUF_SIZE
 		);
 
 		uint32_t wiiu_btns = 0x00;
@@ -193,7 +197,7 @@ static void run_input_recv_thread(void)
 
 		if (bytes_read) {
 			sscanf(
-				recv_buffer,
+				in_conn.recv_buf,
 				"%X %f %f %f %f",
 				&wiiu_btns,
 				&ls.x, &ls.y,
@@ -213,12 +217,17 @@ static void run_input_recv_thread(void)
 
 int main(int argc, char **argv) 
 {
-	if (initialize_vigem_xbox_controller())
-		return EXIT_FAILURE;
 	if (initialize_zed_net())
 		return EXIT_FAILURE;
+
+	if (initialize_vigem_xbox_controller())
+		return EXIT_FAILURE;
+
 	
 	run_input_recv_thread();
+
+	terminate_vigem_xbox_controller();
+	terminate_zed_net();
 
 	return 0;
 }

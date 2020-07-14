@@ -16,7 +16,7 @@
 
 #define FRAME_HEAP_TAG (0x000DECAF)
 
-char send_buffer[256];
+char send_buffer[42];
 
 int main(int argc, char **argv)
 {
@@ -69,7 +69,8 @@ int main(int argc, char **argv)
 				ls.x, ls.y,
 				rs.x, rs.y
 			);
-			udp_send(send_buffer, size);
+
+			udp_send((uint8_t*)send_buffer, size);	
 		} else {
 			if (vpad_data.trigger & VPAD_BUTTON_A) {
 				if (udp_init("192.168.15.3", 4242)) {
