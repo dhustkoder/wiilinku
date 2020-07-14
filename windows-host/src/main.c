@@ -51,18 +51,13 @@ int main(int argc, char **argv)
 {
 
 	PVIGEM_CLIENT client = vigem_alloc();
-
 	VIGEM_ERROR ret = vigem_connect(client);
-
 	PVIGEM_TARGET x360 = vigem_target_x360_alloc();
-
 	ret = vigem_target_add(client, x360);
-
 	ret = vigem_target_x360_register_notification(client, x360, &notification, NULL);
 
 	XUSB_REPORT report;
 	XUSB_REPORT_INIT(&report);
-
 	zed_net_init();
 
 	const unsigned short port = 4242;
@@ -73,7 +68,6 @@ int main(int argc, char **argv)
 	}
 
 	printf("waiting data on port: %d!\n", port);
-
 
 	for (;;) {
 		zed_net_address_t sender;
@@ -117,19 +111,15 @@ int main(int argc, char **argv)
 
 			if (wiiu_btns & WIIU_BUTTON_PLUS)
 				report.wButtons |= XUSB_GAMEPAD_START;
-
 			if (wiiu_btns & WIIU_BUTTON_MINUS)
 				report.wButtons |= XUSB_GAMEPAD_BACK;
-
 			if (wiiu_btns & WIIU_BUTTON_L)
 				report.wButtons |= XUSB_GAMEPAD_LEFT_SHOULDER;
-
 			if (wiiu_btns & WIIU_BUTTON_R)
 				report.wButtons |= XUSB_GAMEPAD_RIGHT_SHOULDER;
 
 			if (wiiu_btns & WIIU_BUTTON_STICK_R)
 				report.wButtons |= XUSB_GAMEPAD_RIGHT_THUMB;
-
 			if (wiiu_btns & WIIU_BUTTON_STICK_L)
 				report.wButtons |= XUSB_GAMEPAD_LEFT_THUMB;
 
@@ -144,11 +134,13 @@ int main(int argc, char **argv)
 				"RECV: %.5X %.3f %.3f %.3f %.3f | TOTAL BUFFER SIZE = %d\n",
 				wiiu_btns, ls.x, ls.y, rs.x, rs.y, bytes_read
 			);
+
 		}
 
-		ret = vigem_target_x360_update(client, x360, report);
-	}
 
+		ret = vigem_target_x360_update(client, x360, report);
+
+	}
 
 	vigem_target_x360_unregister_notification(x360);
 	vigem_target_remove(client, x360);

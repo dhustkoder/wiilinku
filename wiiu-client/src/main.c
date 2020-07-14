@@ -95,8 +95,6 @@ int main(int argc, char **argv)
 		DCFlushRange(ScreenBuffer1, sBufferSizeDRC);
 		OSScreenFlipBuffersEx(SCREEN_TV);
 		OSScreenFlipBuffersEx(SCREEN_DRC);
-
-
 	}
 
 	udp_deinit();
