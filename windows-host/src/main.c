@@ -98,13 +98,13 @@ int main(int argc, char **argv)
 			report.wButtons = 0x00;
 
 			if (wiiu_btns & WIIU_BUTTON_A)
-				report.wButtons |= XUSB_GAMEPAD_A;
-			if (wiiu_btns & WIIU_BUTTON_B)
 				report.wButtons |= XUSB_GAMEPAD_B;
+			if (wiiu_btns & WIIU_BUTTON_B)
+				report.wButtons |= XUSB_GAMEPAD_A;
 			if (wiiu_btns & WIIU_BUTTON_X)
-				report.wButtons |= XUSB_GAMEPAD_X;
-			if (wiiu_btns & WIIU_BUTTON_Y)
 				report.wButtons |= XUSB_GAMEPAD_Y;
+			if (wiiu_btns & WIIU_BUTTON_Y)
+				report.wButtons |= XUSB_GAMEPAD_X;
 
 			if (wiiu_btns & WIIU_BUTTON_DOWN)
 				report.wButtons |= XUSB_GAMEPAD_DPAD_DOWN;
@@ -141,11 +141,11 @@ int main(int argc, char **argv)
 			report.sThumbRY = rs.y * INT16_MAX;
 
 			printf(
-				"RECV: %.5X %.3f %.3f %.3f %.3f | TOTAL BUFFER SIZE = \n",
+				"RECV: %.5X %.3f %.3f %.3f %.3f | TOTAL BUFFER SIZE = %d\n",
 				wiiu_btns, ls.x, ls.y, rs.x, rs.y, bytes_read
 			);
 		}
-		
+
 		ret = vigem_target_x360_update(client, x360, report);
 	}
 
