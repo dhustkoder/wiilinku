@@ -16,25 +16,12 @@
 
 #define FRAME_HEAP_TAG (0x000DECAF)
 
-enum xusb_gamepad_button {
-    XUSB_GAMEPAD_DPAD_UP            = 0x0001,
-    XUSB_GAMEPAD_DPAD_DOWN          = 0x0002,
-    XUSB_GAMEPAD_DPAD_LEFT          = 0x0004,
-    XUSB_GAMEPAD_DPAD_RIGHT         = 0x0008,
-    XUSB_GAMEPAD_START              = 0x0010,
-    XUSB_GAMEPAD_BACK               = 0x0020,
-    XUSB_GAMEPAD_LEFT_THUMB         = 0x0040,
-    XUSB_GAMEPAD_RIGHT_THUMB        = 0x0080,
-    XUSB_GAMEPAD_LEFT_SHOULDER      = 0x0100,
-    XUSB_GAMEPAD_RIGHT_SHOULDER     = 0x0200,
-    XUSB_GAMEPAD_GUIDE              = 0x0400,
-    XUSB_GAMEPAD_A                  = 0x1000,
-    XUSB_GAMEPAD_B                  = 0x2000,
-    XUSB_GAMEPAD_X                  = 0x4000,
-    XUSB_GAMEPAD_Y                  = 0x8000
+enum gamepad_extra_bit {
+	WIIU_EXTRA_BIT_XUSB_GAMEPAD_ZR = 0x10000,
+	WIIU_EXTRA_BIT_XUSB_GAMEPAD_ZL = 0x20000
 };
 
-char send_buffer[32];
+char send_buffer[256];
 
 int main(int argc, char **argv)
 {
@@ -77,28 +64,16 @@ int main(int argc, char **argv)
 		if (connected) {
 			OSScreenPutFontEx(SCREEN_DRC, -4, 1, "Connected.");
 			OSScreenPutFontEx(SCREEN_DRC, -4, 2, send_buffer);
-			uint16_t buttons = 0x00;
-
-			if (vpad_data.hold & VPAD_BUTTON_A)
-				buttons |= XUSB_GAMEPAD_A;
-			if (vpad_data.hold & VPAD_BUTTON_B)
-				buttons |= XUSB_GAMEPAD_B;
-			if (vpad_data.hold & VPAD_BUTTON_X)
-				buttons |= XUSB_GAMEPAD_X;
-			if (vpad_data.hold & VPAD_BUTTON_Y)
-				buttons |= XUSB_GAMEPAD_Y;
-
-			if (vpad_data.hold & VPAD_BUTTON_DOWN)
-				buttons |= XUSB_GAMEPAD_DPAD_DOWN;
-			if (vpad_data.hold & VPAD_BUTTON_UP)
-				buttons |= XUSB_GAMEPAD_DPAD_UP;
-			if (vpad_data.hold & VPAD_BUTTON_LEFT)
-				buttons |= XUSB_GAMEPAD_DPAD_LEFT;
-			if (vpad_data.hold & VPAD_BUTTON_RIGHT)
-				buttons |= XUSB_GAMEPAD_DPAD_RIGHT;
-
+			const VPADVec2D ls = vpad_data.leftStick;
+			const VPADVec2D rs = vpad_data.rightStick;
 			int size = 0;
-			size += sprintf(send_buffer, "%.4X", buttons);
+			size += sprintf(
+				send_buffer,
+				"%.5X %.3f %.3f %.3f %.3f",
+				vpad_data.hold,
+				ls.x, ls.y,
+				rs.x, rs.y
+			);
 			udp_send(send_buffer, size);
 		} else {
 			if (vpad_data.trigger & VPAD_BUTTON_A) {
