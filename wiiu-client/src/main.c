@@ -16,11 +16,6 @@
 
 #define FRAME_HEAP_TAG (0x000DECAF)
 
-enum gamepad_extra_bit {
-	WIIU_EXTRA_BIT_XUSB_GAMEPAD_ZR = 0x10000,
-	WIIU_EXTRA_BIT_XUSB_GAMEPAD_ZL = 0x20000
-};
-
 char send_buffer[256];
 
 int main(int argc, char **argv)

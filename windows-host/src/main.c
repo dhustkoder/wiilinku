@@ -1,4 +1,5 @@
 #include <winsock2.h>
+#include <windows.h>
 #include <ViGEm/Client.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -30,11 +31,21 @@ struct vec2 {
 	float x,y;
 } ls, rs;
 
+struct vigem_xbox_controller {
+	PVIGEM_CLIENT client;
+	PVIGEM_TARGET target;
+	XUSB_REPORT report;
+} x360_pad;
+
+struct input_connection {
+	zed_net_socket_t socket;
+	zed_net_address_t sender;
+} in_conn;
 
 char recv_buffer[256];
 
 
-VOID CALLBACK notification(
+VOID CALLBACK xbox_controller_notification_handler(
 	PVIGEM_CLIENT Client,
 	PVIGEM_TARGET Target,
 	UCHAR LargeMotor,
@@ -47,40 +58,140 @@ VOID CALLBACK notification(
 }
 
 
-int main(int argc, char **argv) 
+static int initialize_vigem_xbox_controller(void)
 {
+	x360_pad.client = vigem_alloc();
+	VIGEM_ERROR err = vigem_connect(x360_pad.client);
 
-	PVIGEM_CLIENT client = vigem_alloc();
-	VIGEM_ERROR ret = vigem_connect(client);
-	PVIGEM_TARGET x360 = vigem_target_x360_alloc();
-	ret = vigem_target_add(client, x360);
-	ret = vigem_target_x360_register_notification(client, x360, &notification, NULL);
-
-	XUSB_REPORT report;
-	XUSB_REPORT_INIT(&report);
-	zed_net_init();
-
-	const unsigned short port = 4242;
-	zed_net_socket_t socket;
-	if (zed_net_udp_socket_open(&socket, port, 0)) {
-		printf("Error: %s\n", zed_net_get_error());
-		return -1;
+	if (err != VIGEM_ERROR_NONE) {
+		printf("vigem_connect error = %X\n", err);
+		return 1;
 	}
 
-	printf("waiting data on port: %d!\n", port);
+	x360_pad.target = vigem_target_x360_alloc();
+	err = vigem_target_add(x360_pad.client, x360_pad.target);
 
+	if (err != VIGEM_ERROR_NONE) {
+		printf("vigem_target_add error = %X\n", err);
+		return 1;
+	}
+
+	err = vigem_target_x360_register_notification(
+		x360_pad.client,
+		x360_pad.target,
+		&xbox_controller_notification_handler,
+		NULL
+	);
+
+	if (err != VIGEM_ERROR_NONE) {
+		printf("vigem_target_x360_register_notification error = %X\n", err);
+		return 1;
+	}
+
+	XUSB_REPORT_INIT(&x360_pad.report);
+
+	return 0;
+}
+
+static void terminate_vigem_xbox_controller(void)
+{
+	vigem_target_x360_unregister_notification(x360_pad.target);
+	vigem_target_remove(x360_pad.client, x360_pad.target);
+	vigem_target_free(x360_pad.target);
+	vigem_free(x360_pad.client);
+}
+
+static void update_vigem_xbox_controller_state(
+	const uint32_t wiiu_btns,
+	struct vec2 ls,
+	struct vec2 rs
+)
+{
+	x360_pad.report.wButtons = 0x00;
+
+	if (wiiu_btns & WIIU_BUTTON_A)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_B;
+	if (wiiu_btns & WIIU_BUTTON_B)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_A;
+	if (wiiu_btns & WIIU_BUTTON_X)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_Y;
+	if (wiiu_btns & WIIU_BUTTON_Y)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_X;
+
+	if (wiiu_btns & WIIU_BUTTON_DOWN)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_DPAD_DOWN;
+	if (wiiu_btns & WIIU_BUTTON_UP)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_DPAD_UP;
+	if (wiiu_btns & WIIU_BUTTON_LEFT)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_DPAD_LEFT;
+	if (wiiu_btns & WIIU_BUTTON_RIGHT)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_DPAD_RIGHT;
+
+	if (wiiu_btns & WIIU_BUTTON_PLUS)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_START;
+	if (wiiu_btns & WIIU_BUTTON_MINUS)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_BACK;
+	if (wiiu_btns & WIIU_BUTTON_L)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_LEFT_SHOULDER;
+	if (wiiu_btns & WIIU_BUTTON_R)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_RIGHT_SHOULDER;
+
+	if (wiiu_btns & WIIU_BUTTON_STICK_R)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_RIGHT_THUMB;
+	if (wiiu_btns & WIIU_BUTTON_STICK_L)
+		x360_pad.report.wButtons |= XUSB_GAMEPAD_LEFT_THUMB;
+
+	x360_pad.report.bLeftTrigger = (wiiu_btns&WIIU_BUTTON_ZL) ? 0xFF : 0x00;
+	x360_pad.report.bRightTrigger = (wiiu_btns&WIIU_BUTTON_ZR) ? 0xFF : 0x00;
+	x360_pad.report.sThumbLX = ls.x * INT16_MAX;
+	x360_pad.report.sThumbLY = ls.y * INT16_MAX;
+	x360_pad.report.sThumbRX = rs.x * INT16_MAX;
+	x360_pad.report.sThumbRY = rs.y * INT16_MAX;
+
+	VIGEM_ERROR ret = vigem_target_x360_update(
+		x360_pad.client,
+		x360_pad.target,
+		x360_pad.report
+	);
+
+	if (ret != 0) {
+		printf("Error on vigem target update: %X", ret);
+	}
+}
+
+
+static int initialize_zed_net(void)
+{
+	zed_net_init();
+	if (zed_net_udp_socket_open(&in_conn.socket, 4242, 0)) {
+		printf("Error: %s\n", zed_net_get_error());
+		return 1;
+	}
+	printf("waiting data on port: %d!\n", 4242);
+	return 0;
+}
+
+static void terminate_zed_net(void)
+{
+	zed_net_socket_close(&in_conn.socket);
+	zed_net_shutdown();
+}
+
+static void run_input_recv_thread(void)
+{
 	for (;;) {
-		zed_net_address_t sender;
 		int bytes_read = zed_net_udp_socket_receive(
-			&socket,
-			&sender,
+			&in_conn.socket,
+			&in_conn.sender,
 			&recv_buffer,
 			sizeof(recv_buffer)
 		);
 
-		if (bytes_read) {
-			uint32_t wiiu_btns;
+		uint32_t wiiu_btns = 0x00;
+		struct vec2 ls = { 0, 0 };
+		struct vec2 rs = { 0, 0 };
 
+		if (bytes_read) {
 			sscanf(
 				recv_buffer,
 				"%X %f %f %f %f",
@@ -89,65 +200,25 @@ int main(int argc, char **argv)
 				&rs.x, &rs.y
 			);
 
-			report.wButtons = 0x00;
-
-			if (wiiu_btns & WIIU_BUTTON_A)
-				report.wButtons |= XUSB_GAMEPAD_B;
-			if (wiiu_btns & WIIU_BUTTON_B)
-				report.wButtons |= XUSB_GAMEPAD_A;
-			if (wiiu_btns & WIIU_BUTTON_X)
-				report.wButtons |= XUSB_GAMEPAD_Y;
-			if (wiiu_btns & WIIU_BUTTON_Y)
-				report.wButtons |= XUSB_GAMEPAD_X;
-
-			if (wiiu_btns & WIIU_BUTTON_DOWN)
-				report.wButtons |= XUSB_GAMEPAD_DPAD_DOWN;
-			if (wiiu_btns & WIIU_BUTTON_UP)
-				report.wButtons |= XUSB_GAMEPAD_DPAD_UP;
-			if (wiiu_btns & WIIU_BUTTON_LEFT)
-				report.wButtons |= XUSB_GAMEPAD_DPAD_LEFT;
-			if (wiiu_btns & WIIU_BUTTON_RIGHT)
-				report.wButtons |= XUSB_GAMEPAD_DPAD_RIGHT;
-
-			if (wiiu_btns & WIIU_BUTTON_PLUS)
-				report.wButtons |= XUSB_GAMEPAD_START;
-			if (wiiu_btns & WIIU_BUTTON_MINUS)
-				report.wButtons |= XUSB_GAMEPAD_BACK;
-			if (wiiu_btns & WIIU_BUTTON_L)
-				report.wButtons |= XUSB_GAMEPAD_LEFT_SHOULDER;
-			if (wiiu_btns & WIIU_BUTTON_R)
-				report.wButtons |= XUSB_GAMEPAD_RIGHT_SHOULDER;
-
-			if (wiiu_btns & WIIU_BUTTON_STICK_R)
-				report.wButtons |= XUSB_GAMEPAD_RIGHT_THUMB;
-			if (wiiu_btns & WIIU_BUTTON_STICK_L)
-				report.wButtons |= XUSB_GAMEPAD_LEFT_THUMB;
-
-			report.bLeftTrigger = (wiiu_btns&WIIU_BUTTON_ZL) ? 0xFF : 0x00;
-			report.bRightTrigger = (wiiu_btns&WIIU_BUTTON_ZR) ? 0xFF : 0x00;
-			report.sThumbLX = ls.x * INT16_MAX;
-			report.sThumbLY = ls.y * INT16_MAX;
-			report.sThumbRX = rs.x * INT16_MAX;
-			report.sThumbRY = rs.y * INT16_MAX;
-
 			printf(
 				"RECV: %.5X %.3f %.3f %.3f %.3f | TOTAL BUFFER SIZE = %d\n",
 				wiiu_btns, ls.x, ls.y, rs.x, rs.y, bytes_read
 			);
-
 		}
 
-
-		ret = vigem_target_x360_update(client, x360, report);
-
+		update_vigem_xbox_controller_state(wiiu_btns, ls, rs);
 	}
+}
 
-	vigem_target_x360_unregister_notification(x360);
-	vigem_target_remove(client, x360);
-	vigem_target_free(x360);
-	vigem_free(client);
 
-	zed_net_socket_close(&socket);
-	zed_net_shutdown();
+int main(int argc, char **argv) 
+{
+	if (initialize_vigem_xbox_controller())
+		return EXIT_FAILURE;
+	if (initialize_zed_net())
+		return EXIT_FAILURE;
+	
+	run_input_recv_thread();
+
 	return 0;
 }
