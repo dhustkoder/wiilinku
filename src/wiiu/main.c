@@ -122,12 +122,15 @@ int main(int argc, char **argv)
 	platform_init();
 
 	// Gamepad key state data
-	VPADReadError error;
+	VPADReadError verror;
+	int32_t kerror;
 	VPADStatus vpad_data;
+	KPADStatus kpad_data;
 
 
 	for (;;) {
-		VPADRead(VPAD_CHAN_0, &vpad_data, 1, &error);
+		VPADRead(VPAD_CHAN_0, &vpad_data, 1, &verror);
+		KPADReadEx(WPAD_CHAN_0, &kpad_data, 1, &kerror);
 		video_render_clear();
 
 		video_printf(
@@ -150,24 +153,28 @@ int main(int argc, char **argv)
 		const VPADVec2D ls = vpad_data.leftStick;
 		const VPADVec2D rs = vpad_data.rightStick;
 		
-		jpkt.btns = vpad_data.hold;
-		jpkt.lsx = ls.x * INT16_MAX;
-		jpkt.lsy = ls.y * INT16_MAX;
-		jpkt.rsx = rs.x * INT16_MAX;
-		jpkt.rsy = rs.y * INT16_MAX;
+		jpkt.gamepad.btns = vpad_data.hold;
+		jpkt.gamepad.lsx = ls.x * INT16_MAX;
+		jpkt.gamepad.lsy = ls.y * INT16_MAX;
+		jpkt.gamepad.rsx = rs.x * INT16_MAX;
+		jpkt.gamepad.rsy = rs.y * INT16_MAX;
+
+		jpkt.wiimote.btns = kpad_data.hold;
 		
 		video_printf(
-			"%.8X %.4X %.4X %.4X %.4X",
-			jpkt.btns,
-			jpkt.lsx,
-			jpkt.lsy,
-			jpkt.rsx,
-			jpkt.rsy
+			"GAMEPAD: %.8X %.4X %.4X %.4X %.4X\n"
+			"WIIMOTE: %.8X\n",
+			jpkt.gamepad.btns,
+			jpkt.gamepad.lsx,
+			jpkt.gamepad.lsy,
+			jpkt.gamepad.rsx,
+			jpkt.gamepad.rsy,
+			jpkt.wiimote.btns
 		);
 
 		netn_joy_update(&jpkt);
 
-		if (vpad_data.trigger & VPAD_BUTTON_HOME)
+		if (vpad_data.trigger & VPAD_BUTTON_HOME || kpad_data.trigger & WPAD_BUTTON_HOME)
 			break;
 
 		video_render_flip();

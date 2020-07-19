@@ -57,19 +57,31 @@ struct netn_conn {
 
 struct netn_joy_packet {
 	#ifdef WIIUPCX_HOST
-	uint32_t btns;
-	int16_t lsx;
-	int16_t lsy;
-	int16_t rsx;
-	int16_t rsy;
+	struct {
+		uint32_t btns;
+		int16_t lsx;
+		int16_t lsy;
+		int16_t rsx;
+		int16_t rsy;
+	} gamepad;
+
+	struct {
+		uint32_t btns;
+	} wiimote;
 	#endif /* WIIUPCX_HOST */
 
 	#ifdef WIIUPCX_CLIENT
-	uint32_t btns;
-	int16_t lsx;
-	int16_t lsy;
-	int16_t rsx;
-	int16_t rsy;
+	struct {
+		uint32_t btns;
+		int16_t lsx;
+		int16_t lsy;
+		int16_t rsx;
+		int16_t rsy;
+	} gamepad;
+
+	struct {
+		uint32_t btns;
+	} wiimote;
 	#endif /* WIIUPCX_CLIENT */
 };
 
@@ -254,27 +266,35 @@ int netn_joy_update(struct netn_joy_packet* jpkt)
 	#ifdef WIIUPCX_HOST
 	netn_recv((unsigned char*) jpkt, sizeof(*jpkt), NETN_CONNECTION_JIN);
 	
-	const uint32_t btns = jpkt->btns;
-	const int16_t rsx = jpkt->rsx;
-	const int16_t rsy = jpkt->rsy;
-	const int16_t lsx = jpkt->lsx;
-	const int16_t lsy = jpkt->lsy;
+	uint32_t btns = jpkt->gamepad.btns;
+	const int16_t rsx = jpkt->gamepad.rsx;
+	const int16_t rsy = jpkt->gamepad.rsy;
+	const int16_t lsx = jpkt->gamepad.lsx;
+	const int16_t lsy = jpkt->gamepad.lsy;
 
-	jpkt->btns = (btns&0xFF)<<24|
-	             (btns&0xFF000000)>>24|
-	             (btns&0xFF0000)>>8|
-	             (btns&0x00FF00)<<8;
+	jpkt->gamepad.btns = (btns&0xFF)<<24|
+	                     (btns&0xFF000000)>>24|
+	                     (btns&0xFF0000)>>8|
+	                     (btns&0x00FF00)<<8;
 
-	jpkt->rsx = (rsx&0xFF00)>>8|
-	            (rsx&0x00FF)<<8;
-	jpkt->rsy = (rsy&0xFF00)>>8|
-	            (rsy&0x00FF)<<8;
+	jpkt->gamepad.rsx = (rsx&0xFF00)>>8|
+	                    (rsx&0x00FF)<<8;
+	jpkt->gamepad.rsy = (rsy&0xFF00)>>8|
+	                    (rsy&0x00FF)<<8;
 
-	jpkt->lsx = (lsx&0xFF00)>>8|
-	            (lsx&0x00FF)<<8;
+	jpkt->gamepad.lsx = (lsx&0xFF00)>>8|
+	                    (lsx&0x00FF)<<8;
 
-	jpkt->lsy = (lsy&0xFF00)>>8|
-	            (lsy&0x00FF)<<8;
+	jpkt->gamepad.lsy = (lsy&0xFF00)>>8|
+	                    (lsy&0x00FF)<<8;
+
+
+	btns = jpkt->wiimote.btns;
+	jpkt->wiimote.btns = (btns&0xFF)<<24|
+	                     (btns&0xFF000000)>>24|
+	                     (btns&0xFF0000)>>8|
+	                     (btns&0x00FF00)<<8;
+
 	#endif /* WIIUPCX_HOST */
 
 	#ifdef WIIUPCX_CLIENT

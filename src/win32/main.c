@@ -134,8 +134,10 @@ int CALLBACK WinMain(HINSTANCE hInstance,
 		}
 
 		log_info(
-			"RECV: %.8X %.4X %.4X %.4X %.4X\n",
-			jpkt.btns, jpkt.lsx, jpkt.lsy, jpkt.rsx, jpkt.rsy
+			"GAMEPAD: %.8X %.4X %.4X %.4X %.4X\n"
+			"WIIMOTE: %.8X\n",
+			jpkt.gamepad.btns, jpkt.gamepad.lsx, jpkt.gamepad.lsy, jpkt.gamepad.rsx, jpkt.gamepad.rsy,
+			jpkt.wiimote.btns
 		);
 
 		x360emu_update(&jpkt);
