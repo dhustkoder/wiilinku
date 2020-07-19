@@ -6,4 +6,5 @@
 *.rpx
 *.d
 *.map
-*.lst   
+*.lst  
+*.dmp

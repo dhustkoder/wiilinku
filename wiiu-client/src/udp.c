@@ -1,4 +1,5 @@
 #include <coreinit/memdefaultheap.h>
+#include <coreinit/time.h>
 #include <nsysnet/socket.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -16,7 +17,7 @@ int udp_init(const char * ipString, unsigned short ipport)
 {
 	udp_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (udp_socket < 0)
-		return 0;
+		return 1;
 
 	struct sockaddr_in connect_addr;
 	memset(&connect_addr, 0, sizeof(connect_addr));
@@ -27,10 +28,10 @@ int udp_init(const char * ipString, unsigned short ipport)
 	if(connect(udp_socket, (struct sockaddr*)&connect_addr, sizeof(connect_addr)) < 0) {
 		socketclose(udp_socket);
 		udp_socket = -1;
-		return 0;
+		return 1;
 	}
 
-	return 1;
+	return 0;
 }
 
 void udp_deinit(void)
@@ -51,6 +52,30 @@ int udp_send(uint8_t* data, int size)
 			return 1;
 		len -= ret;
 		data += ret;
+	}
+
+	return 0;
+}
+
+int udp_recv(uint8_t* data, int size)
+{
+	int len = size;
+
+
+	while (len > 0) {
+
+		int block = len;
+		int ret = recv(udp_socket, data, block, MSG_DONTWAIT);
+		
+		if (ret < 0)
+			return 1;
+		if (ret == 0)
+			return 1;
+
+		len -= ret;
+		data += ret;
+
+
 	}
 
 	return 0;

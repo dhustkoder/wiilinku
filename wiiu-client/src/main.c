@@ -12,11 +12,23 @@
 #include <coreinit/cache.h>
 #include <coreinit/memfrmheap.h>
 #include <coreinit/thread.h>
+#include <h264/decode.h>
 #include "udp.h"
+
+MEMHeapHandle heap;
+
+
 
 #define FRAME_HEAP_TAG (0x000DECAF)
 
 char send_buffer[42];
+
+
+unsigned char test_img[1400];
+
+
+
+
 
 int main(int argc, char **argv)
 {
@@ -27,12 +39,12 @@ int main(int argc, char **argv)
 	WPADEnableURCC(1);
 
 	// Init screen and screen buffers
-	MEMHeapHandle heap = MEMGetBaseHeapHandle(MEM_BASE_HEAP_MEM1);
+	heap = MEMGetBaseHeapHandle(MEM_BASE_HEAP_MEM1);
 	MEMRecordStateForFrmHeap(heap, FRAME_HEAP_TAG);
 	OSScreenInit();
 	const uint32_t sBufferSizeTV = OSScreenGetBufferSizeEx(SCREEN_TV);
 	const uint32_t sBufferSizeDRC = OSScreenGetBufferSizeEx(SCREEN_DRC);
-	void *ScreenBuffer0 = MEMAllocFromFrmHeapEx(heap, sBufferSizeTV, 4);
+	unsigned char *ScreenBuffer0 = MEMAllocFromFrmHeapEx(heap, sBufferSizeTV, 4);
 	void *ScreenBuffer1 = MEMAllocFromFrmHeapEx(heap, sBufferSizeDRC, 4);
 	OSScreenSetBufferEx(SCREEN_TV, ScreenBuffer0);
 	OSScreenSetBufferEx(SCREEN_DRC, ScreenBuffer1);
@@ -49,6 +61,8 @@ int main(int argc, char **argv)
 
 	int connected = 0;
 
+	memset(test_img, 0x00, sizeof(test_img));
+
 	for (;;) {
 		VPADRead(VPAD_CHAN_0, &vpad_data, 1, &error);
 
@@ -59,6 +73,7 @@ int main(int argc, char **argv)
 		if (connected) {
 			OSScreenPutFontEx(SCREEN_DRC, -4, 1, "Connected.");
 			OSScreenPutFontEx(SCREEN_DRC, -4, 2, send_buffer);
+
 			const VPADVec2D ls = vpad_data.leftStick;
 			const VPADVec2D rs = vpad_data.rightStick;
 			int size = 0;
@@ -70,17 +85,19 @@ int main(int argc, char **argv)
 				rs.x, rs.y
 			);
 
-			udp_send((uint8_t*)send_buffer, size);	
+			udp_send((uint8_t*)send_buffer, sizeof send_buffer);
 		} else {
+			OSScreenPutFontEx(SCREEN_DRC, -4, 1, "Press A to connect");
+
 			if (vpad_data.trigger & VPAD_BUTTON_A) {
-				if (udp_init("192.168.15.3", 4242)) {
-					connected = 1;
-				} else {
+				if (udp_init("192.168.15.7", 4242)) {
 					OSScreenPutFontEx(SCREEN_DRC, -4, 3, "Connection Failed...");
 					OSSleepTicks(10000000);
+				} else {
+					connected = 1;
 				}
 			}
-			OSScreenPutFontEx(SCREEN_DRC, -4, 1, "Press A to connect");
+			
 		}
 
 		if (vpad_data.trigger & VPAD_BUTTON_HOME)
