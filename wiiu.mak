@@ -17,11 +17,11 @@ include $(DEVKITPRO)/wut/share/wut_rules
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
 #-------------------------------------------------------------------------------
-TARGET		:=	wiiupcx
-BUILD		:=	build
-SOURCES		:=	src src/vendor/iniparser
+TARGET		:=	wiiu_build/wiiupcx
+BUILD		:=	wiiu_build
+SOURCES		:=	src src/wiiu
 DATA		:=	data
-INCLUDES	:=	src
+INCLUDES	:=	src src/wiiu
 
 #-------------------------------------------------------------------------------
 # options for code generation
@@ -29,7 +29,7 @@ INCLUDES	:=	src
 CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
 			$(MACHDEP)
 
-CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__
+CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DWIIUPCX_CLIENT
 
 CXXFLAGS	:= $(CFLAGS)
 
@@ -97,7 +97,7 @@ all: $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/wiiu.mak
 
 #-------------------------------------------------------------------------------
 clean:

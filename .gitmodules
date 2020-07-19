@@ -1,3 +1,3 @@
 [submodule "windows-host/externals/ViGEmClient"]
-	path = windows-host/externals/ViGEmClient
+	path = externals/ViGEmClient
 	url = https://github.com/ViGEm/ViGEmClient

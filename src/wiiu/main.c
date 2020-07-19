@@ -13,7 +13,8 @@
 #include <coreinit/memfrmheap.h>
 #include <coreinit/thread.h>
 #include <h264/decode.h>
-#include "udp.h"
+#define NETN_IMPLEMENTATION
+#include "netn.h"
 
 MEMHeapHandle heap;
 
@@ -21,7 +22,7 @@ MEMHeapHandle heap;
 
 #define FRAME_HEAP_TAG (0x000DECAF)
 
-char send_buffer[42];
+unsigned char send_buffer[42];
 
 
 unsigned char test_img[1400];
@@ -72,25 +73,24 @@ int main(int argc, char **argv)
 
 		if (connected) {
 			OSScreenPutFontEx(SCREEN_DRC, -4, 1, "Connected.");
-			OSScreenPutFontEx(SCREEN_DRC, -4, 2, send_buffer);
+			OSScreenPutFontEx(SCREEN_DRC, -4, 2, (char*)send_buffer);
 
 			const VPADVec2D ls = vpad_data.leftStick;
 			const VPADVec2D rs = vpad_data.rightStick;
 			int size = 0;
 			size += sprintf(
-				send_buffer,
+				(char*)send_buffer,
 				"%.5X %.3f %.3f %.3f %.3f",
 				vpad_data.hold,
 				ls.x, ls.y,
 				rs.x, rs.y
 			);
-
-			udp_send((uint8_t*)send_buffer, sizeof send_buffer);
+			netn_send_packet(send_buffer, sizeof send_buffer, NETN_CONNECTION_JOUT);
 		} else {
 			OSScreenPutFontEx(SCREEN_DRC, -4, 1, "Press A to connect");
 
 			if (vpad_data.trigger & VPAD_BUTTON_A) {
-				if (udp_init("192.168.15.7", 4242)) {
+				if (netn_init()) {
 					OSScreenPutFontEx(SCREEN_DRC, -4, 3, "Connection Failed...");
 					OSSleepTicks(10000000);
 				} else {
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
 		OSScreenFlipBuffersEx(SCREEN_DRC);
 	}
 
-	udp_deinit();
+	netn_term();
 	WHBDeinitializeSocketLibrary();
 	OSScreenShutdown();
 	MEMFreeByStateToFrmHeap(heap, FRAME_HEAP_TAG);
