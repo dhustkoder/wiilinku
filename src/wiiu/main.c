@@ -50,7 +50,7 @@ static int video_init(void)
 
 	memset(log_buffer, 0, sizeof log_buffer);
 
-	return 1;
+	return 0;
 }
 
 static void video_term(void)
@@ -88,18 +88,16 @@ static void video_printf(const char* fmt, ...)
 static int platform_init(void)
 {
 	WHBProcInit();
+	WHBInitializeSocketLibrary();
 	VPADInit();
 	KPADInit();
 	WPADEnableURCC(1);
 
-	if (netn_init())
-		return 1;
-
 	if (video_init())
 		return 1;
 
-
-
+	if (netn_init())
+		return 1;
 
 	return 0;
 }
@@ -107,9 +105,12 @@ static int platform_init(void)
 
 static void platform_term(void)
 {
-	video_term();
-	
+
 	netn_term();
+
+	video_term();
+
+	WHBDeinitializeSocketLibrary();
 
 	WHBProcShutdown();
 }

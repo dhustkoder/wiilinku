@@ -151,7 +151,7 @@ int netn_init(void)
 
 	#ifdef WIIUPCX_CLIENT
 
-	WHBInitializeSocketLibrary();
+	
 
 	if (netn_client_conn_init("192.168.15.7", 4242, &conns[NETN_CONNECTION_JOUT])) {
 		return 1;
@@ -177,7 +177,6 @@ void netn_term(void)
 	#ifdef WIIUPCX_CLIENT
 	netn_client_conn_term(&conns[NETN_CONNECTION_JOUT]);
 	netn_client_conn_term(&conns[NETN_CONNECTION_VIN]);
-	WHBDeinitializeSocketLibrary();
 	#endif /* WIIUPCX_CLIENT */
 }
 
