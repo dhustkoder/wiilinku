@@ -3,9 +3,6 @@
 #include "x360emu.h"
 #include "log.h"
 
-
-
-
 static struct vigem_x360_pad {
 	PVIGEM_CLIENT client;
 	PVIGEM_TARGET target;
@@ -76,12 +73,10 @@ void x360emu_term(void)
 	vigem_free(x360_pad.client);
 }
 
-int x360emu_update(
-	const uint32_t wiiu_btns,
-	struct vec2 ls,
-	struct vec2 rs
-)
+int x360emu_update(struct netn_joy_packet* jpkt)
 {
+	const uint32_t wiiu_btns = jpkt->btns;
+
 	x360_pad.report.wButtons = 0x00;
 
 	if (wiiu_btns & WIIU_BUTTON_A)
@@ -118,10 +113,10 @@ int x360emu_update(
 
 	x360_pad.report.bLeftTrigger = (wiiu_btns&WIIU_BUTTON_ZL) ? 0xFF : 0x00;
 	x360_pad.report.bRightTrigger = (wiiu_btns&WIIU_BUTTON_ZR) ? 0xFF : 0x00;
-	x360_pad.report.sThumbLX = (SHORT) (ls.x * INT16_MAX);
-	x360_pad.report.sThumbLY = (SHORT) (ls.y * INT16_MAX);
-	x360_pad.report.sThumbRX = (SHORT) (rs.x * INT16_MAX);
-	x360_pad.report.sThumbRY = (SHORT) (rs.y * INT16_MAX);
+	x360_pad.report.sThumbLX = jpkt->lsx;
+	x360_pad.report.sThumbLY = jpkt->lsy;
+	x360_pad.report.sThumbRX = jpkt->rsx;
+	x360_pad.report.sThumbRY = jpkt->rsy;
 
 	VIGEM_ERROR ret = vigem_target_x360_update(
 		x360_pad.client,

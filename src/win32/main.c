@@ -1,19 +1,13 @@
 #include <stdint.h>
 #include <limits.h>
 #include <stdio.h>
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
-#define NETN_IMPLEMENTATION
-#include "netn.h"
-
-
 #include "gui.h"
 #include "log.h"
 #include "video_encoder.h"
 #include "x360emu.h"
 
+#define NETN_IMPLEMENTATION
+#include "netn.h"
 
 
 static BYTE vout_buffer[1366 * 768 * 3];
@@ -56,39 +50,6 @@ static void get_current_frame(BYTE* dest, int* x, int* y, int *bpp)
 }
 
 
-static void run_input_recv_thread(void)
-{
-	unsigned char recv_buf[42];
-	uint32_t wiiu_btns;
-	struct vec2 ls;
-	struct vec2 rs;
-	int bytes_read;
-
-	for (;;) {
-		ls = (struct vec2) { 0, 0 };
-		rs = (struct vec2) { 0, 0 };
-		wiiu_btns = 0;
-
-		if ((bytes_read = netn_recv_packet(recv_buf, sizeof recv_buf, NETN_CONNECTION_JIN)) != -1) {
-			_snscanf(
-				(char*)&recv_buf[0],
-				sizeof recv_buf,
-				"%X %f %f %f %f",
-				&wiiu_btns,
-				&ls.x, &ls.y,
-				&rs.x, &rs.y
-			);
-
-			log_info(
-				"RECV: %.5X %.3f %.3f %.3f %.3f | TOTAL BUFFER SIZE = %d\n",
-				wiiu_btns, ls.x, ls.y, rs.x, rs.y, bytes_read
-			);
-		}
-
-		x360emu_update(wiiu_btns, ls, rs);
-	}
-}
-
 
 static void run_video_sender_thread(void)
 {
@@ -108,11 +69,11 @@ static void run_video_sender_thread(void)
 		unsigned char* vinp = vin_buffer;
 
 		while (sender_idx < frame_size || recver_idx < frame_size) {
-			netn_send_packet(voutp, 1400, NETN_CONNECTION_VOUT);
+			netn_send(voutp, 1400, NETN_CONNECTION_VOUT);
 			voutp += 1400;
 			sender_idx += 1400;
 
-			netn_recv_packet(vinp, 1400, NETN_CONNECTION_VOUT);
+			netn_recv(vinp, 1400, NETN_CONNECTION_VOUT);
 			vinp += 1400;
 			recver_idx += 1400;
 		}
@@ -160,13 +121,26 @@ int CALLBACK WinMain(HINSTANCE hInstance,
 {
 	((void)hPrevInstance);
 	((void)lpCmdLine);
+
 	if (init_platform(hInstance, nCmdShow))
 		return 1;
 		
 	
-	run_input_recv_thread();
+	struct netn_joy_packet jpkt;
 
-	// run_video_sender_thread();
+	for (;;) {
+		if (netn_joy_update(&jpkt)) {
+			log_info("ERROR RECV INPUT\n");
+		}
+
+		log_info(
+			"RECV: %.8X %.4X %.4X %.4X %.4X\n",
+			jpkt.btns, jpkt.lsx, jpkt.lsy, jpkt.rsx, jpkt.rsy
+		);
+
+		x360emu_update(&jpkt);
+	}
+
 
 	terminate_platform();
 

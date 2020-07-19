@@ -7,8 +7,7 @@
 
 
 #ifdef _WIN32
-#include <winsock2.h>
-#include <windows.h>
+#include "zed_net.h"
 #endif /* _WIN32 */
 
 #ifdef __WIIU__
@@ -23,36 +22,28 @@
 #include <unistd.h>
 #endif /* __WIIU__ */
 
+
 #include <stdint.h>
+
+
+#define MAX_PACKET_LEN (1400)
+
 
 enum netn_conn_idx {
 	#ifdef WIIUPCX_HOST
 	NETN_CONNECTION_JIN,
-	NETN_CONNECTION_VOUT
+	NETN_CONNECTION_VOUT,
 	#endif /* WIIUPCX_HOST */
 
 	#ifdef WIIUPCX_CLIENT
 	NETN_CONNECTION_JOUT,
-	NETN_CONNECTION_VIN
+	NETN_CONNECTION_VIN,
 	#endif /* WIIUPCX_CLIENT */
 
+	NETN_CONNECTION_NCONS = 2,
 };
 
-extern int netn_init(void);
-extern void netn_term(void);
-extern int netn_send_packet(const unsigned char* data, int size, enum netn_conn_idx idx);
-extern int netn_recv_packet(unsigned char* dest, int size, enum netn_conn_idx idx);
-
-#ifdef NETN_IMPLEMENTATION /* NETN_IMPLEMENTATION */
-#ifdef WIIUPCX_HOST
-#define ZED_NET_IMPLEMENTATION
-#include "zed_net.h"
-#include "log.h"
-#endif /* WIIUPCX_HOST */
-
-#define MAX_PACKET_LEN (1400)
-
-static struct netn_conn {
+struct netn_conn {
 	#ifdef WIIUPCX_HOST
 	zed_net_socket_t socket;
 	zed_net_address_t client;
@@ -61,9 +52,51 @@ static struct netn_conn {
 	#ifdef WIIUPCX_CLIENT
 	int socket;
 	struct sockaddr_in host;
-	#endif
+	#endif /* WIIUPCX_CLIENT */
+};
 
-} conns[2];
+struct netn_joy_packet {
+	#ifdef WIIUPCX_HOST
+	uint32_t btns;
+	int16_t lsx;
+	int16_t lsy;
+	int16_t rsx;
+	int16_t rsy;
+	#endif /* WIIUPCX_HOST */
+
+	#ifdef WIIUPCX_CLIENT
+	uint32_t btns;
+	int16_t lsx;
+	int16_t lsy;
+	int16_t rsx;
+	int16_t rsy;
+	#endif /* WIIUPCX_CLIENT */
+};
+
+
+extern int netn_init(void);
+extern void netn_term(void);
+extern int netn_send(const unsigned char* data, int size, enum netn_conn_idx idx);
+extern int netn_recv(unsigned char* dest, int size, enum netn_conn_idx idx);
+extern int netn_joy_update(struct netn_joy_packet* jpkt);
+extern int netn_video_update(unsigned char* data, int w, int h, int bpp);
+
+#endif /* WIIUPCX_NETN_H_ */
+
+#ifdef NETN_IMPLEMENTATION /* NETN_IMPLEMENTATION */
+
+
+#ifdef WIIUPCX_HOST
+#define ZED_NET_IMPLEMENTATION
+#include "zed_net.h"
+#include "log.h"
+#endif /* WIIUPCX_HOST */
+
+
+
+
+static struct netn_conn conns[NETN_CONNECTION_NCONS];
+
 
 #ifdef WIIUPCX_CLIENT
 
@@ -118,6 +151,8 @@ int netn_init(void)
 
 	#ifdef WIIUPCX_CLIENT
 
+	WHBInitializeSocketLibrary();
+
 	if (netn_client_conn_init("192.168.15.7", 4242, &conns[NETN_CONNECTION_JOUT])) {
 		return 1;
 	}
@@ -142,10 +177,11 @@ void netn_term(void)
 	#ifdef WIIUPCX_CLIENT
 	netn_client_conn_term(&conns[NETN_CONNECTION_JOUT]);
 	netn_client_conn_term(&conns[NETN_CONNECTION_VIN]);
+	WHBDeinitializeSocketLibrary();
 	#endif /* WIIUPCX_CLIENT */
 }
 
-int netn_send_packet(const unsigned char* data, int size, enum netn_conn_idx idx)
+int netn_send(const unsigned char* data, int size, enum netn_conn_idx idx)
 {
 	struct netn_conn* conn = &conns[idx];
 
@@ -179,7 +215,7 @@ int netn_send_packet(const unsigned char* data, int size, enum netn_conn_idx idx
 	return 0;
 }
 
-int netn_recv_packet(unsigned char* dest, int size, enum netn_conn_idx idx)
+int netn_recv(unsigned char* dest, int size, enum netn_conn_idx idx)
 {
 	struct netn_conn* conn = &conns[idx];
 
@@ -214,6 +250,53 @@ int netn_recv_packet(unsigned char* dest, int size, enum netn_conn_idx idx)
 	return size;
 }
 
+int netn_joy_update(struct netn_joy_packet* jpkt)
+{
+	#ifdef WIIUPCX_HOST
+	netn_recv((unsigned char*) jpkt, sizeof(*jpkt), NETN_CONNECTION_JIN);
+	
+	const uint32_t btns = jpkt->btns;
+	const int16_t rsx = jpkt->rsx;
+	const int16_t rsy = jpkt->rsy;
+	const int16_t lsx = jpkt->lsx;
+	const int16_t lsy = jpkt->lsy;
+
+	jpkt->btns = (btns&0xFF)<<24|
+	             (btns&0xFF000000)>>24|
+	             (btns&0xFF0000)>>8|
+	             (btns&0x00FF00)<<8;
+
+	jpkt->rsx = (rsx&0xFF00)>>8|
+	            (rsx&0x00FF)<<8;
+	jpkt->rsy = (rsy&0xFF00)>>8|
+	            (rsy&0x00FF)<<8;
+
+	jpkt->lsx = (lsx&0xFF00)>>8|
+	            (lsx&0x00FF)<<8;
+
+	jpkt->lsy = (lsy&0xFF00)>>8|
+	            (lsy&0x00FF)<<8;
+	#endif /* WIIUPCX_HOST */
+
+	#ifdef WIIUPCX_CLIENT
+	netn_send((unsigned char*) jpkt, sizeof(*jpkt), NETN_CONNECTION_JOUT);
+	#endif /* WIIUPCX_CLIENT */
+
+	return 0;
+}
+
+int netn_video_update(unsigned char* data, int w, int h, int bpp)
+{
+	#ifdef WIIUPCX_HOST
+	netn_send(data, w * h * bpp, NETN_CONNECTION_VOUT);
+	#endif /* WIIUPCX_HOST */
+
+	#ifdef WIIUPCX_CLIENT
+	netn_recv(data, w * h * bpp, NETN_CONNECTION_VIN);
+	#endif /* WIIUPCX_CLIENT */
+
+	return 0;
+}
 
 #endif /* NETN_IMPLEMENTATION */
-#endif /* WIIUPCX_NETN_H_ */
+

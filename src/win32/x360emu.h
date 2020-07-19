@@ -1,7 +1,7 @@
 #ifndef WIIUPCX_X360EMU_H_
 #define WIIUPCX_X360EMU_H_
 #include <stdint.h>
-
+#include "netn.h"
 
 enum wiiu_button {
 	WIIU_BUTTON_A     = 0x8000,
@@ -22,13 +22,9 @@ enum wiiu_button {
 	WIIU_BUTTON_STICK_L = 0x00040000
 };
 
-struct vec2 {
-	float x, y;
-};
-
 
 int x360emu_init(void);
 void x360emu_term(void);
-int x360emu_update(uint32_t wiiu_btns, struct vec2 ls, struct vec2 rs);
+int x360emu_update(struct netn_joy_packet* jpkt);
 
 #endif
