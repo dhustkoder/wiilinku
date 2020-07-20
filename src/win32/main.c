@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include "gui.h"
 #include "log.h"
-#include "video_encoder.h"
 #include "x360emu.h"
 
 #define NETN_IMPLEMENTATION

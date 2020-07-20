@@ -5,7 +5,6 @@
 #include <coreinit/screen.h>
 #include <padscore/kpad.h>
 #include <vpad/input.h>
-#include <nsysnet/socket.h>
 #include <nn/ac/ac_c.h>
 #include <whb/libmanager.h>
 #include <coreinit/memheap.h>
@@ -126,7 +125,6 @@ int main(int argc, char **argv)
 	int32_t kerror;
 	VPADStatus vpad_data;
 	KPADStatus kpad_data;
-
 
 	for (;;) {
 		VPADRead(VPAD_CHAN_0, &vpad_data, 1, &verror);
