@@ -3,6 +3,9 @@
 #include "gui.h"
 #include "log.h"
 
+#define ZUI_IMPLEMENTATION
+#include "zui.h"
+
 
 static HWND hwnd_mainwin;
 static WNDCLASS wc;
@@ -16,8 +19,8 @@ static HDC hdc_mainwin;
 static BITMAPINFO bmi = {
 	.bmiHeader = {
 		.biSize = sizeof(BITMAPINFOHEADER),
-		.biWidth = 0,
-		.biHeight = 0,
+		.biWidth = 800,
+		.biHeight = -600,
 		.biPlanes = 1,
 		.biBitCount = 24,
 		.biCompression = BI_RGB,
@@ -29,6 +32,9 @@ static BITMAPINFO bmi = {
 	}
 };
 
+static uint8_t framebuffer[800 * 600 * 3];
+
+static struct zui_window zwin;
 
 static void window_size_update(void)
 {
@@ -59,7 +65,7 @@ static LRESULT window_proc_clbk(HWND hwnd,
 }
 
 int gui_init(const HINSTANCE hInstance,
-                       const int nCmdShow)
+             const int nCmdShow)
 {
 	memset(&wc, 0, sizeof(wc));
 	wc.lpfnWndProc   = window_proc_clbk;
@@ -74,7 +80,7 @@ int gui_init(const HINSTANCE hInstance,
 			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 			NULL, NULL, wc.hInstance, NULL);
 	if (!hwnd_mainwin) {
-		printf("Failed to initialize WINDOW HWND");
+		log_info("Failed to initialize WINDOW HWND");
 		return 1;
 	}
 
@@ -84,36 +90,46 @@ int gui_init(const HINSTANCE hInstance,
 
 	hdc_mainwin = GetDC(hwnd_mainwin);
 
+	if (zui_init(framebuffer, 800, 600)) {
+		log_info("failed to initialize Zui");
+		return 1;
+	}
+
+	if (zui_window_init(&zwin, 800 / 2 - 200, 600 / 2 - 225, 400, 450)) {
+		log_info("failed to initialize zui window");
+		return 1;
+	}
+
 	return 0;
 }
 
 void gui_term(void)
 {
+	zui_window_term(&zwin);
+	zui_term();
 	DestroyWindow(hwnd_mainwin);
 }
 
-BOOL gui_win_update(void)
+int gui_win_update(void)
 {
+	if (wm_destroy_request)
+		return 1;
+
 	while (PeekMessageA(&msg_mainwin, hwnd_mainwin, 0, 0, PM_REMOVE))
 		DispatchMessage(&msg_mainwin);
-	return !wm_destroy_request;
-}
 
-
-extern void gui_render(BYTE* data, int width, int height, int bpp)
-{
 	BeginPaint(hwnd_mainwin, &paintstruct);
 
-	bmi.bmiHeader.biWidth = width;
-	bmi.bmiHeader.biHeight = -height;
-	bmi.bmiHeader.biBitCount = (WORD) (bpp * 8);
+	zui_window_render(&zwin);
 
 	StretchDIBits(hdc_mainwin, 0, 0, win_width, win_height,
-	              0, 0, width, height,
-	              data, &bmi, DIB_RGB_COLORS, SRCCOPY);
+	              0, 0, 800, 600,
+	              framebuffer, &bmi, DIB_RGB_COLORS, SRCCOPY);
 
 
 	EndPaint(hwnd_mainwin, &paintstruct);
+
+	return 0;
 }
 
 

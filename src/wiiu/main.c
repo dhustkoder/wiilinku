@@ -126,6 +126,9 @@ int main(int argc, char **argv)
 	VPADStatus vpad_data;
 	KPADStatus kpad_data;
 
+	memset(&vpad_data, 0, sizeof vpad_data);
+	memset(&kpad_data, 0, sizeof kpad_data);
+
 	for (;;) {
 		VPADRead(VPAD_CHAN_0, &vpad_data, 1, &verror);
 		KPADReadEx(WPAD_CHAN_0, &kpad_data, 1, &kerror);
