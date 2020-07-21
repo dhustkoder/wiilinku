@@ -7,6 +7,9 @@
 #include "zui.h"
 
 
+#define GUI_WIDTH  (480)
+#define GUI_HEIGHT (360)
+
 static HWND hwnd_mainwin;
 static WNDCLASS wc;
 static PAINTSTRUCT paintstruct;
@@ -19,8 +22,8 @@ static HDC hdc_mainwin;
 static BITMAPINFO bmi = {
 	.bmiHeader = {
 		.biSize = sizeof(BITMAPINFOHEADER),
-		.biWidth = 800,
-		.biHeight = -600,
+		.biWidth = GUI_WIDTH,
+		.biHeight = -GUI_HEIGHT,
 		.biPlanes = 1,
 		.biBitCount = 24,
 		.biCompression = BI_RGB,
@@ -32,7 +35,7 @@ static BITMAPINFO bmi = {
 	}
 };
 
-static uint8_t framebuffer[800 * 600 * 3];
+static uint8_t framebuffer[GUI_WIDTH * GUI_HEIGHT * 3];
 
 static struct zui_window zwin;
 
@@ -90,15 +93,18 @@ int gui_init(const HINSTANCE hInstance,
 
 	hdc_mainwin = GetDC(hwnd_mainwin);
 
-	if (zui_init(framebuffer, 800, 600)) {
+	if (zui_init(framebuffer, GUI_WIDTH, GUI_HEIGHT)) {
 		log_info("failed to initialize Zui");
 		return 1;
 	}
 
-	if (zui_window_init(&zwin, 800 / 2 - 200, 600 / 2 - 225, 400, 450)) {
+	if (zui_window_init(&zwin, 0, 0, GUI_WIDTH, GUI_HEIGHT)) {
 		log_info("failed to initialize zui window");
 		return 1;
 	}
+
+
+	zui_window_printf(&zwin, 20, 20, "Hello Hyrule: %s", "Link");
 
 	return 0;
 }
@@ -123,7 +129,7 @@ int gui_win_update(void)
 	zui_window_render(&zwin);
 
 	StretchDIBits(hdc_mainwin, 0, 0, win_width, win_height,
-	              0, 0, 800, 600,
+	              0, 0, GUI_WIDTH, GUI_HEIGHT,
 	              framebuffer, &bmi, DIB_RGB_COLORS, SRCCOPY);
 
 
