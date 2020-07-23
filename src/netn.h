@@ -32,12 +32,10 @@
 enum netn_conn_idx {
 	#ifdef WIIUPCX_HOST
 	NETN_CONNECTION_JIN,
-	NETN_CONNECTION_VOUT,
 	#endif /* WIIUPCX_HOST */
 
 	#ifdef WIIUPCX_CLIENT
 	NETN_CONNECTION_JOUT,
-	NETN_CONNECTION_VIN,
 	#endif /* WIIUPCX_CLIENT */
 
 	NETN_CONNECTION_NCONS = 2,
@@ -154,11 +152,6 @@ int netn_init(void)
 		return 1;
 	}
 
-	if (zed_net_udp_socket_open(&conns[NETN_CONNECTION_VOUT].socket, 4243, 0)) {
-		log_info("Error: %s\n", zed_net_get_error());
-		return 1;
-	}
-
 	#endif /* WIIUPCX_HOST */
 
 	#ifdef WIIUPCX_CLIENT
@@ -166,10 +159,6 @@ int netn_init(void)
 	
 
 	if (netn_client_conn_init("192.168.15.7", 4242, &conns[NETN_CONNECTION_JOUT])) {
-		return 1;
-	}
-
-	if (netn_client_conn_init("192.168.15.7", 4243, &conns[NETN_CONNECTION_VIN])) {
 		return 1;
 	}
 
@@ -182,13 +171,11 @@ void netn_term(void)
 {
 	#ifdef WIIUPCX_HOST
 	zed_net_socket_close(&conns[NETN_CONNECTION_JIN].socket);
-	zed_net_socket_close(&conns[NETN_CONNECTION_VOUT].socket);
 	zed_net_shutdown();
 	#endif /* WIIUPCX_HOST */
 
 	#ifdef WIIUPCX_CLIENT
 	netn_client_conn_term(&conns[NETN_CONNECTION_JOUT]);
-	netn_client_conn_term(&conns[NETN_CONNECTION_VIN]);
 	#endif /* WIIUPCX_CLIENT */
 }
 
@@ -299,19 +286,6 @@ int netn_joy_update(struct netn_joy_packet* jpkt)
 
 	#ifdef WIIUPCX_CLIENT
 	netn_send((unsigned char*) jpkt, sizeof(*jpkt), NETN_CONNECTION_JOUT);
-	#endif /* WIIUPCX_CLIENT */
-
-	return 0;
-}
-
-int netn_video_update(unsigned char* data, int w, int h, int bpp)
-{
-	#ifdef WIIUPCX_HOST
-	netn_send(data, w * h * bpp, NETN_CONNECTION_VOUT);
-	#endif /* WIIUPCX_HOST */
-
-	#ifdef WIIUPCX_CLIENT
-	netn_recv(data, w * h * bpp, NETN_CONNECTION_VIN);
 	#endif /* WIIUPCX_CLIENT */
 
 	return 0;

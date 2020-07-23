@@ -24,7 +24,7 @@ static VOID CALLBACK x360_notification(
 	((void)small_motor);
 	((void)led_number);
 	((void)udata);
-	log_info("X360 NOTIFICATION CALLED\n");
+	log_info("X360 NOTIFICATION CALLED");
 }
 
 

@@ -98,13 +98,10 @@ int gui_init(const HINSTANCE hInstance,
 		return 1;
 	}
 
-	if (zui_window_init(&zwin, 0, 0, GUI_WIDTH, GUI_HEIGHT)) {
+	if (zui_window_init(&zwin, "wiiupcx", 0, 0, GUI_WIDTH, GUI_HEIGHT)) {
 		log_info("failed to initialize zui window");
 		return 1;
 	}
-
-
-	zui_window_printf(&zwin, 20, 20, "Hello Hyrule: %s", "Link");
 
 	return 0;
 }

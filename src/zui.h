@@ -2,25 +2,69 @@
 #define WIIUPCX_ZUI_H_
 #include <stdint.h>
 
-struct zui_context {
-	int w, h;
-	void* fb;
+
+enum zui_comp_type {
+	ZUI_COMP_TYPE_TEXT
 };
 
-struct zui_window {
-	int w, h, x, y;
-	void* pixels;
-};
-
-struct rgb24 {
+struct zui_rgb24 {
 	uint8_t b, g, r;
 };
 
+struct zui_point {
+	int x, y;
+};
+
+struct zui_size {
+	int w, h;
+};
+
+struct zui_rect {
+	int x, y;
+	int w, h;
+};
+
+struct zui_context {
+	struct zui_size size;
+	void* fb;
+};
+
+struct zui_comp_text {
+	struct zui_rect rect;
+	void* pixels;
+};
+
+struct zui_component {
+	uint8_t type;
+	union {
+		struct zui_comp_text text;
+	};
+};
+
+struct zui_window {
+	struct zui_rect rect;
+	int ncomps;
+	struct zui_component* comps;
+	void* pixels;
+};
+
+
+
+
+
+
 extern int zui_init(void* framebuffer, int w, int h);
-extern int zui_window_init(struct zui_window* zw, int x, int y, int w, int h);
+extern int zui_window_init(struct zui_window* zw, const char* title, int x, int y, int w, int h);
 extern void zui_window_render(struct zui_window* win);
 extern void zui_window_term(struct zui_window* win);
 extern void zui_term(void);
+
+
+extern void zui_comp_text_init(struct zui_comp_text* text);
+extern void zui_str_render(const char* text, struct zui_rgb24* dest, int stride);
+extern void zui_comp_text_set(struct zui_comp_text* text, const char* str, ...);
+extern void zui_comp_text_term(struct zui_comp_text* text);
+
 
 #endif /* WIIUPCX_ZUI_H_ */
 
@@ -32,14 +76,16 @@ extern void zui_term(void);
 #define VBORDER_W (8)
 #define VBORDER_H (20)
 
-#define CHARSET_W (112)
-#define CHARSET_H (21)
+
 
 #define CHAR_W    (7)
 #define CHAR_H    (7)
+#define CHARSET_W (112)
+#define CHARSET_H (21)
+#define CHARS_PER_LINE (CHARSET_W / CHAR_W)
 
 
-static const unsigned char hborder_data[] =
+static const uint8_t hborder_data[] =
 	"\000\253\000\203\323\023\000G\000\000G\000\000G\000\000\253\000\000\253\000\005\005\005\005\005\005\005\005\005\000\253"
 	"\000\000G\000\000G\000\005\005\005\005\005\005\005\005\005\203\323\023\000G\000\000G\000\203\323\023\000G\000\000\253"
 	"\000\005\005\005\005\005\005\005\005\005\000\253\000\000G\000\000G\000\203\323\023\000\253\000\000\253\000\005\005\005\000"
@@ -52,7 +98,7 @@ static const unsigned char hborder_data[] =
 	"\000\253\000\005\005\005\005\005\005\000\253\000\000\253\000\005\005\005\005\005\005\000\253\000\000\253\000\005\005\005\005"
 	"\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005";
 
-static const unsigned char vborder_data[] = 
+static const uint8_t vborder_data[] = 
 	"\000G\000\000G\000\005\005\005\000G\000\203\323\023\000\253\000\005\005\005\000\253\000\005\005\005\203\323\023\000"
 	"G\000\000G\000\000\253\000\000\253\000\203\323\023\203\323\023\000\253\000\000\253\000\000G\000\000\253"
 	"\000\005\005\005\203\323\023\005\005\005\005\005\005\005\005\005\000G\000\000\253\000\000\253\000\005\005\005\000\253\000"
@@ -70,7 +116,7 @@ static const unsigned char vborder_data[] =
 	"G\000\000\253\000\005\005\005\203\323\023\000G\000\000\253\000\000\253\000\000\253\000\000G\000\005\005\005\000G\000"
 	"\000G\000\203\323\023\000\253\000\000\253\000\005\005\005";
 
-static const unsigned char charset_data[] =
+static const uint8_t charset_data[] =
   "\000\000\000\000\000\000\377\377\377\377\377\377\377\377\377\000\000\000\000\000\000\000\000\000\000\000\000"
   "\000\000\000\377\377\377\377\377\377\000\000\000\000\000\000\000\000\000\377\377\377\377\377\377"
   "\377\377\377\377\377\377\377\377\377\000\000\000\000\000\000\377\377\377\377\377\377"
@@ -359,95 +405,25 @@ static char zui_charbuf[2048];
 int zui_init(void* framebuffer, int w, int h)
 {
 	zctx.fb = framebuffer;
-	zctx.w = w;
-	zctx.h = h;
+	zctx.size.w = w;
+	zctx.size.h = h;
 
 	return 0;
 }
 
-int zui_window_init(struct zui_window* zw, int x, int y, int w, int h)
+void zui_str_render(const char* text, const int len, struct zui_rgb24* dest, int stride)
 {
-	zw->w = w;
-	zw->h = h;
-	zw->x = x;
-	zw->y = y;
 
-	zw->pixels = malloc(3 * w * h);
-	memset(zw->pixels, 0, 3 * w * h);
-	
-	struct rgb24* dest = zw->pixels;
-	const struct rgb24* hbord = hborder_data;
-	const struct rgb24* vbord = vborder_data;
-	
-	/* horizontal borders */
-	for (int i = 0; i < HBORDER_H; ++i) {
-		for (int j = 0; j < w; ++j) {
-			dest[i * w + j] = hbord[(i * HBORDER_W) + (j % HBORDER_W)];
-			dest[((w * h) - HBORDER_H * w) + i * w + j] = hbord[(i * HBORDER_W) + (j % HBORDER_W)];
-		}
-	}
-
-
-	/* vertical borders */
-	for (int i = 0; i < h; ++i) {
-		for (int j = 0; j < VBORDER_W; ++j) {
-			dest[i * w + j] = vbord[((i % VBORDER_H) * VBORDER_W) + j];
-			dest[(w - VBORDER_W) + i * w + j] = vbord[((i % VBORDER_H) * VBORDER_W) + j];
-		}
-	}
-
-
-	return 0;
-}
-
-void zui_window_render(struct zui_window* zw)
-{
-	const int zwx = zw->x;
-	const int zwy = zw->y;
-	const int zww = zw->w;
-	const int zwh = zw->h;
-
-	const int fbw = zctx.w;
-	const int fbh = zctx.h;
-
-	struct rgb24* dest = zctx.fb;
-	struct rgb24* src = zw->pixels;
-
-	dest += (zwy * fbw) + zwx;
-
-	for (int i = 0; i < zwh; ++i) {
-		memcpy((void*)dest, (void*)src, zww * 3);
-		src += zww;
-		dest += fbw;
-	}
-
-}
-
-void zui_window_printf(struct zui_window* zw, int x, int y, const char* fmt, ...)
-{
-	va_list valist;
-	va_start(valist, fmt);
-	int len = vsprintf(zui_charbuf, fmt, valist);
-	va_end(valist);
-
-	const int wh = zw->h;
-	const int ww = zw->w;
-
-	struct rgb24* dest = zw->pixels;
-	const struct rgb24* cset = charset_data;
-	const struct rgb24* src;
-
-	const int chars_per_line = CHARSET_W / CHAR_W;
-
-
-	dest += (y * ww) + x;
-
+	const struct zui_rgb24* cset = (void*)charset_data;
+	const struct zui_rgb24* src;
 	int idx;
+	char c;
+
 	for (int i = 0; i < len; ++i) {
-		const char c = zui_charbuf[i];
+		c = text[i];
 
 		if (c >= 48 && c <= 57) {
-			idx = c - 48;
+			idx = c -= 48;
 		} else if (c >= 65 && c <= 90) {
 			idx = (c - 65) + 10;
 		} else if (c >= 97 && c <= 122) {
@@ -459,25 +435,144 @@ void zui_window_printf(struct zui_window* zw, int x, int y, const char* fmt, ...
 			continue;
 		}
 
-
-		int char_y = (idx / chars_per_line);
-		int char_x = (idx % chars_per_line);
-
-
-		src = &cset[(char_y * CHAR_H * CHARSET_W) + (char_x * CHAR_W)];
+		src = &cset[
+			((idx / CHARS_PER_LINE) * CHAR_H * CHARSET_W) + 
+			((idx % CHARS_PER_LINE) * CHAR_W)
+		];
 
 		for (int cy = 0; cy < CHAR_H; ++cy) {
 			for (int cx = 0; cx < CHAR_W; ++cx) {
-				dest[(cy * ww) + cx] = src[(cy * CHARSET_W) + cx];
+				dest[(cy * stride) + cx] = src[(cy * CHARSET_W) + cx];
 			}
 		}
 
 		dest += CHAR_W + 1;
 	}
-
-
 }
 
+void zui_comp_text_init(struct zui_comp_text* text, int x, int y)
+{
+	text->rect.x = x;
+	text->rect.y = y;
+	text->pixels = NULL;
+}
+
+void zui_comp_text_set(struct zui_comp_text* text, const char* fmt, ...)
+{
+	va_list valist;
+	va_start(valist, fmt);
+	int len = vsprintf(zui_charbuf, fmt, valist);
+	va_end(valist);
+
+	const int w = len * CHAR_W + len;
+	const int h = CHAR_H;
+	text->rect.w = w;
+	text->rect.h = h;
+
+	text->pixels = realloc(text->pixels, w * h * 3);
+	zui_str_render(zui_charbuf, len, text->pixels, w);
+}
+
+void zui_comp_text_term(struct zui_comp_text* text)
+{
+	free(text->pixels);
+}
+
+void zui_window_comp_add(struct zui_window* zwin, const struct zui_component* comp)
+{
+	zwin->comps = realloc(zwin->comps, (zwin->ncomps + 1) * sizeof(*comp));
+	memcpy(&zwin->comps[zwin->ncomps++], comp, sizeof *comp);
+}
+
+void zui_window_text_comp_add(struct zui_window* zwin, const struct zui_comp_text* text)
+{
+	struct zui_component comp = {
+		.type = ZUI_COMP_TYPE_TEXT
+	};
+
+	comp.text.rect = text->rect;
+	comp.text.pixels = text->pixels;
+
+	zui_window_comp_add(zwin, &comp);
+}
+
+int zui_window_init(struct zui_window* zw, const char* title, int x, int y, int w, int h)
+{
+	zw->rect.w = w;
+	zw->rect.h = h;
+	zw->rect.x = x;
+	zw->rect.y = y;
+	zw->ncomps = 0;
+	zw->comps = NULL;
+
+	zw->pixels = malloc(3 * w * h);
+	memset(zw->pixels, 0, 3 * w * h);
+	
+	struct zui_rgb24* dest = zw->pixels;
+	const struct zui_rgb24* hbord = (void*)hborder_data;
+	const struct zui_rgb24* vbord = (void*)vborder_data;
+	
+	for (int i = 0; i < HBORDER_H; ++i) {
+		for (int j = 0; j < w; ++j) {
+			dest[i * w + j] = hbord[(i * HBORDER_W) + (j % HBORDER_W)];
+			dest[((w * h) - HBORDER_H * w) + i * w + j] = hbord[(i * HBORDER_W) + (j % HBORDER_W)];
+		}
+	}
+
+	for (int i = 0; i < h; ++i) {
+		for (int j = 0; j < VBORDER_W; ++j) {
+			dest[i * w + j] = vbord[((i % VBORDER_H) * VBORDER_W) + j];
+			dest[(w - VBORDER_W) + i * w + j] = vbord[((i % VBORDER_H) * VBORDER_W) + j];
+		}
+	}
+
+
+	struct zui_comp_text ztitle;
+	zui_comp_text_init(&ztitle, 0, 0);
+	zui_comp_text_set(&ztitle, title);
+	ztitle.rect.x = (w / 2) - (ztitle.rect.w / 2);
+	ztitle.rect.y = (HBORDER_H + 8);
+	zui_window_text_comp_add(zw, &ztitle);
+
+
+	return 0;
+}
+
+void zui_render(struct zui_rgb24* dest, const struct zui_rgb24* src, struct zui_size dest_size, struct zui_rect src_rect)
+{
+	dest += src_rect.y * dest_size.w + src_rect.x;
+	for (int y = 0; y < src_rect.h; ++y) {
+		memcpy(dest, src, src_rect.w * 3);
+		dest += dest_size.w;
+		src += src_rect.w;
+	}
+}
+
+void zui_window_update(struct zui_window* zw)
+{
+	struct zui_component* comp;
+	for (int i = 0; i < zw->ncomps; ++i) {
+		comp = &zw->comps[i];
+		switch (comp->type) {
+		case ZUI_COMP_TYPE_TEXT:
+			zui_render(
+				zw->pixels,
+				comp->text.pixels,
+				(struct zui_size) { .w = zw->rect.w, .h = zw->rect.h },
+				comp->text.rect
+			);
+			break;
+		}
+	}
+}
+
+void zui_window_render(struct zui_window* zw)
+{
+	struct zui_rgb24* dest = zctx.fb;
+	struct zui_rgb24* src = zw->pixels;
+	zui_window_update(zw);
+	zui_render(dest, src, zctx.size, zw->rect);
+}
 
 void zui_window_term(struct zui_window* zw)
 {

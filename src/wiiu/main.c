@@ -16,14 +16,30 @@
 #define NETN_IMPLEMENTATION
 #include "netn.h"
 
+
+#define LOG_IMPLEMENTATION
+#define LOG_MAX_LINES (6)
+#include "log.h"
+
+
 // screen
 static MEMHeapHandle heap;
 static uint32_t bufsz_tv;
 static uint32_t bufsz_drc;
 static unsigned char* buf_tv;
 static unsigned char* buf_drc;
-static char log_buffer[16000];
-static int log_buffer_idx = 0;
+static char input_log[256];
+
+static const char* logo_ascii =
+	"          _ _                       \n"
+	"          _ _                        \n"
+	"         (_(_)                       \n"
+	"__      ___ _ _   _ _ __   _____  __ \n"
+	"\\ \\ /\\ / | | | | | | '_ \\ / __\\ \\/ / \n"
+	" \\ V  V /| | | |_| | |_) | (__ >  <  \n"
+	"  \\_/\\_/ |_|_|\\__,_| .__/ \\___/_/\\_\\ \n"
+	"                   | |               \n"
+	"                   |_|               \n";
 
 
 
@@ -46,9 +62,6 @@ static int video_init(void)
 	OSScreenClearBufferEx(SCREEN_TV, 0x000000FF);
 	OSScreenClearBufferEx(SCREEN_DRC, 0x000000FF);
 
-
-	memset(log_buffer, 0, sizeof log_buffer);
-
 	return 0;
 }
 
@@ -66,22 +79,35 @@ static void video_render_clear(void)
 
 static void video_render_flip(void)
 {
-	OSScreenPutFontEx(SCREEN_TV, 0, 0, log_buffer);
-	OSScreenPutFontEx(SCREEN_DRC, 0, 0, log_buffer);
-	log_buffer_idx = 0;
-
 	DCFlushRange(buf_tv, bufsz_tv);
 	DCFlushRange(buf_drc, bufsz_drc);
 	OSScreenFlipBuffersEx(SCREEN_TV);
 	OSScreenFlipBuffersEx(SCREEN_DRC);
 }
 
-static void video_printf(const char* fmt, ...)
+static void video_render_text(int x, int y, const char* buf)
 {
-	va_list valist;
-	va_start(valist, fmt);
-	log_buffer_idx += vsprintf(log_buffer + log_buffer_idx, fmt, valist);
-	va_end(valist);
+	OSScreenPutFontEx(SCREEN_TV, x, y, buf);
+	OSScreenPutFontEx(SCREEN_DRC, x, y, buf);
+}
+
+static void video_render_text_aligned(int x, int y, char* buf)
+{
+	char* nwidx;
+	while ((nwidx = strchr(buf, '\n')) != NULL) {
+		*nwidx = '\0';
+		video_render_text(x, y++, buf);
+		*nwidx = '\n';
+		buf = nwidx + 1;
+	}
+
+	if (*buf != '\0')
+		video_render_text(x, y, buf);
+}
+
+static void log_buffer_flusher(const char* buf)
+{
+	video_render_text(0, 10, buf);
 }
 
 static int platform_init(void)
@@ -92,11 +118,20 @@ static int platform_init(void)
 	KPADInit();
 	WPADEnableURCC(1);
 
+	if (log_init(log_buffer_flusher))
+		return 1;
+
+	log_info("log initialized");
+
 	if (video_init())
 		return 1;
 
+	log_info("video initialized");
+
 	if (netn_init())
 		return 1;
+
+	log_info("net initialized");
 
 	return 0;
 }
@@ -108,6 +143,8 @@ static void platform_term(void)
 	netn_term();
 
 	video_term();
+
+	log_term();
 
 	WHBDeinitializeSocketLibrary();
 
@@ -129,24 +166,16 @@ int main(int argc, char **argv)
 	memset(&vpad_data, 0, sizeof vpad_data);
 	memset(&kpad_data, 0, sizeof kpad_data);
 
+
 	for (;;) {
 		VPADRead(VPAD_CHAN_0, &vpad_data, 1, &verror);
 		KPADReadEx(WPAD_CHAN_0, &kpad_data, 1, &kerror);
+
 		video_render_clear();
 
-		video_printf(
-			"          _ _                       \n"
-			"          _ _                        \n"
-			"         (_(_)                       \n"
-			"__      ___ _ _   _ _ __   _____  __ \n"
-			"\\ \\ /\\ / | | | | | | '_ \\ / __\\ \\/ / \n"
-			" \\ V  V /| | | |_| | |_) | (__ >  <  \n"
-			"  \\_/\\_/ |_|_|\\__,_| .__/ \\___/_/\\_\\ \n"
-			"                   | |               \n"
-			"                   |_|               \n"
- 		);
+		video_render_text(0, 0, logo_ascii);
 
-		video_printf("Connected.\n");
+		video_render_text_aligned(20, 10, input_log);
 
 
 		struct netn_joy_packet jpkt;
@@ -154,22 +183,36 @@ int main(int argc, char **argv)
 		const VPADVec2D ls = vpad_data.leftStick;
 		const VPADVec2D rs = vpad_data.rightStick;
 		
+		VPADVec3D gyro = vpad_data.gyro;
+		if (gyro.x > 0.04 || gyro.x < -0.04)
+			gyro.x *= -2.15;
+		else
+			gyro.x = 0;
+		if (gyro.y > 0.04 || gyro.y < -0.04)
+			gyro.y *= -2.15;
+		else
+			gyro.y = 0;
+
+		#define CLAMPF(n, max, min) ((n) > (max)) ? (max) : ((n) < (min)) ? (min) : (n)
+		
 		jpkt.gamepad.btns = vpad_data.hold;
-		jpkt.gamepad.lsx = ls.x * INT16_MAX;
-		jpkt.gamepad.lsy = ls.y * INT16_MAX;
+		jpkt.gamepad.lsx = CLAMPF((ls.x + gyro.y), 1.0, -1.0) * INT16_MAX;
+		jpkt.gamepad.lsy = CLAMPF((ls.y + gyro.x), 1.0, -1.0) * INT16_MAX;
 		jpkt.gamepad.rsx = rs.x * INT16_MAX;
 		jpkt.gamepad.rsy = rs.y * INT16_MAX;
-
 		jpkt.wiimote.btns = kpad_data.hold;
 		
-		video_printf(
+		sprintf(
+			input_log,
 			"GAMEPAD: %.8X %.4X %.4X %.4X %.4X\n"
+			"GAMEPAD GYRO: %.2f %.2f %.2f\n"
 			"WIIMOTE: %.8X\n",
 			jpkt.gamepad.btns,
 			jpkt.gamepad.lsx,
 			jpkt.gamepad.lsy,
 			jpkt.gamepad.rsx,
 			jpkt.gamepad.rsy,
+			gyro.x, gyro.y, gyro.z,
 			jpkt.wiimote.btns
 		);
 
@@ -178,6 +221,8 @@ int main(int argc, char **argv)
 		if (vpad_data.trigger & VPAD_BUTTON_HOME || kpad_data.trigger & WPAD_BUTTON_HOME)
 			break;
 
+
+		log_flush();
 		video_render_flip();
 
 	}
