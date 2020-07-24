@@ -8,15 +8,13 @@
 #include "netn.h"
 
 #define LOG_IMPLEMENTATION
-#define LOG_IMMEDIATE_MODE
 #include "log.h"
 
 static HANDLE stdout_handle;
 
-static void log_buffer_flusher(const char* log_buffer)
+static void log_buffer_flusher(const char* log_buffer, int size)
 {
-	WriteConsoleA(stdout_handle, log_buffer, log_buffer_idx, NULL, NULL);
-	log_buffer_idx = 0;
+	WriteConsoleA(stdout_handle, log_buffer, size, NULL, NULL);
 }
 
 
@@ -67,7 +65,7 @@ static DWORD WINAPI jin_thread_main(LPVOID param)
 		if (netn_joy_update(&jpkt))
 			log_info("ERROR RECV INPUT");
 
-
+		/*
 		log_info(
 			"GAMEPAD: %.8X %.4X %.4X %.4X %.4X\n"
 			"WIIMOTE: %.8X",
@@ -75,7 +73,7 @@ static DWORD WINAPI jin_thread_main(LPVOID param)
 			jpkt.gamepad.lsx, jpkt.gamepad.lsy, 
 			jpkt.gamepad.rsx, jpkt.gamepad.rsy,
 			jpkt.wiimote.btns
-		);
+		);*/
 
 		x360emu_update(&jpkt);
 	}
@@ -91,7 +89,7 @@ int CALLBACK WinMain(HINSTANCE hInstance,
 
 	if (init_platform(hInstance, nCmdShow))
 		return 1;
-
+/*
 	DWORD thread_id;
 	HANDLE jin_thread_handle = CreateThread(
 		NULL,
@@ -101,16 +99,18 @@ int CALLBACK WinMain(HINSTANCE hInstance,
 		0,
 		&thread_id
 	);
-
+*/
 	for (;;) {
 		if (gui_win_update())
 			break;
+		
+		log_flush();
 	}
-
+/*
 	if (!TerminateThread(jin_thread_handle, 0)) {
 		log_info("failed to terminate thread: %d", GetLastError());
 	}
-
+*/
 	terminate_platform();
 
 	return 0;

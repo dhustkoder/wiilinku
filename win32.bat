@@ -8,7 +8,7 @@ set INCLUDE_DIRS=/Isrc /Isrc\win32^
                  /I"externals\ViGEmClient\include"
 
 set INCLUDE_LIBS=/LIBPATH:"externals\ViGEmClient\lib\release\x64"
-set SRC=src\\win32\*.c
+set SRC=src\\win32\*.c src\\*.c
 set LIBS=user32.lib gdi32.lib winmm.lib ws2_32.lib^
         setupapi.lib ViGEmClient.lib mfreadwrite.lib^
         mfplat.lib mfuuid.lib ole32.lib

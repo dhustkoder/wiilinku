@@ -51,7 +51,7 @@ static int video_init(void)
 	OSScreenInit();
 	bufsz_tv = OSScreenGetBufferSizeEx(SCREEN_TV);
 	bufsz_drc = OSScreenGetBufferSizeEx(SCREEN_DRC);
-	buf_tv  = MEMAllocFromFrmHeapEx(heap, bufsz_tv, 4);
+	buf_tv	= MEMAllocFromFrmHeapEx(heap, bufsz_tv, 4);
 	buf_drc = MEMAllocFromFrmHeapEx(heap, bufsz_drc, 4);
 	OSScreenSetBufferEx(SCREEN_TV, buf_tv);
 	OSScreenSetBufferEx(SCREEN_DRC, buf_drc);
@@ -107,7 +107,7 @@ static void video_render_text_aligned(int x, int y, char* buf)
 
 static void log_buffer_flusher(const char* buf)
 {
-	video_render_text(0, 10, buf);
+	video_render_text(0, 13, buf);
 }
 
 static int platform_init(void)
@@ -166,38 +166,22 @@ int main(int argc, char **argv)
 	memset(&vpad_data, 0, sizeof vpad_data);
 	memset(&kpad_data, 0, sizeof kpad_data);
 
-
 	for (;;) {
 		VPADRead(VPAD_CHAN_0, &vpad_data, 1, &verror);
 		KPADReadEx(WPAD_CHAN_0, &kpad_data, 1, &kerror);
 
 		video_render_clear();
-
 		video_render_text(0, 0, logo_ascii);
-
 		video_render_text_aligned(20, 10, input_log);
-
 
 		struct netn_joy_packet jpkt;
 		
 		const VPADVec2D ls = vpad_data.leftStick;
 		const VPADVec2D rs = vpad_data.rightStick;
 		
-		VPADVec3D gyro = vpad_data.gyro;
-		if (gyro.x > 0.04 || gyro.x < -0.04)
-			gyro.x *= -2.15;
-		else
-			gyro.x = 0;
-		if (gyro.y > 0.04 || gyro.y < -0.04)
-			gyro.y *= -2.15;
-		else
-			gyro.y = 0;
-
-		#define CLAMPF(n, max, min) ((n) > (max)) ? (max) : ((n) < (min)) ? (min) : (n)
-		
 		jpkt.gamepad.btns = vpad_data.hold;
-		jpkt.gamepad.lsx = CLAMPF((ls.x + gyro.y), 1.0, -1.0) * INT16_MAX;
-		jpkt.gamepad.lsy = CLAMPF((ls.y + gyro.x), 1.0, -1.0) * INT16_MAX;
+		jpkt.gamepad.lsx = ls.x * INT16_MAX;
+		jpkt.gamepad.lsy = ls.y * INT16_MAX;
 		jpkt.gamepad.rsx = rs.x * INT16_MAX;
 		jpkt.gamepad.rsy = rs.y * INT16_MAX;
 		jpkt.wiimote.btns = kpad_data.hold;
@@ -205,14 +189,12 @@ int main(int argc, char **argv)
 		sprintf(
 			input_log,
 			"GAMEPAD: %.8X %.4X %.4X %.4X %.4X\n"
-			"GAMEPAD GYRO: %.2f %.2f %.2f\n"
 			"WIIMOTE: %.8X\n",
 			jpkt.gamepad.btns,
 			jpkt.gamepad.lsx,
 			jpkt.gamepad.lsy,
 			jpkt.gamepad.rsx,
 			jpkt.gamepad.rsy,
-			gyro.x, gyro.y, gyro.z,
 			jpkt.wiimote.btns
 		);
 
