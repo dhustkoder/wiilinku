@@ -53,7 +53,7 @@ static bool sock_wait_for_data(socket_t sock)
 
 #if defined(_WIN32)
 	timer.tv_sec = 0;
-	timer.tv_usec = 600000;
+	timer.tv_usec = 60000;
 
 	int retval = select(sock + 1, &readfd, NULL, NULL, &timer);
 
