@@ -47,31 +47,31 @@ enum wiiu_gamepad_btn {
 
 enum wiimote_btn {
    //! The left button of the D-pad.
-   WIIMOTE_BTN_LEFT                    = 0x0001,
+   WIIMOTE_BTN_LEFT                    = 0x00010000,
    //! The right button of the D-pad.
-   WIIMOTE_BTN_RIGHT                   = 0x0002,
+   WIIMOTE_BTN_RIGHT                   = 0x00020000,
    //! The down button of the D-pad.
-   WIIMOTE_BTN_DOWN                    = 0x0004,
+   WIIMOTE_BTN_DOWN                    = 0x00040000,
    //! The up button of the D-pad.
-   WIIMOTE_BTN_UP                      = 0x0008,
+   WIIMOTE_BTN_UP                      = 0x00080000,
    //! The + button.
-   WIIMOTE_BTN_PLUS                    = 0x0010,
+   WIIMOTE_BTN_PLUS                    = 0x00100000,
    //! The 2 button.
-   WIIMOTE_BTN_2                       = 0x0100,
+   WIIMOTE_BTN_2                       = 0x01000000,
    //! The 1 button.
-   WIIMOTE_BTN_1                       = 0x0200,
+   WIIMOTE_BTN_1                       = 0x02000000,
    //! The B button.
-   WIIMOTE_BTN_B                       = 0x0400,
+   WIIMOTE_BTN_B                       = 0x04000000,
    //! The A button.
-   WIIMOTE_BTN_A                       = 0x0800,
+   WIIMOTE_BTN_A                       = 0x08000000,
    //! The - button.
-   WIIMOTE_BTN_MINUS                   = 0x1000,
+   WIIMOTE_BTN_MINUS                   = 0x10000000,
    //! The Z button on the Nunchuk extension.
-   WIIMOTE_BTN_Z                       = 0x2000,
+   WIIMOTE_BTN_Z                       = 0x20000000,
    //! The C button on the Nunchuk extension.
-   WIIMOTE_BTN_C                       = 0x4000,
+   WIIMOTE_BTN_C                       = 0x40000000,
    //! The HOME button.
-   WIIMOTE_BTN_HOME                    = 0x8000,
+   WIIMOTE_BTN_HOME                    = 0x80000000,
 };
 
 enum INPUT_PACKET_FLAGS {
