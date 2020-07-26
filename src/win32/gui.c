@@ -62,13 +62,13 @@ static LRESULT window_proc_clbk(HWND hwnd,
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
-int gui_initialized = 0;
-int gui_init(const HINSTANCE hInstance,
-             const int nCmdShow)
+
+bool gui_init(const char* ip,
+             unsigned short port
+)
 {
 	memset(&wc, 0, sizeof(wc));
 	wc.lpfnWndProc   = window_proc_clbk;
-	wc.hInstance     = hInstance;
 	wc.lpszClassName = "wiiupcx";
 
 	RegisterClass(&wc);
@@ -80,27 +80,26 @@ int gui_init(const HINSTANCE hInstance,
 			NULL, NULL, wc.hInstance, NULL);
 	if (!hwnd_mainwin) {
 		log_info("Failed to initialize WINDOW HWND");
-		return 1;
+		return false;
 	}
 
-	ShowWindow(hwnd_mainwin, nCmdShow);
+	ShowWindow(hwnd_mainwin, 1);
 	UpdateWindow(hwnd_mainwin);
 	window_size_update();
 
 	hdc_mainwin = GetDC(hwnd_mainwin);
 
-	if (zui_init(framebuffer, GUI_WIDTH, GUI_HEIGHT)) {
+
+	char title_buffer[512];
+	sprintf(title_buffer, "wiiupcx - ip %s - port %d", ip, port);
+
+	if (!zui_init(title_buffer, framebuffer, GUI_WIDTH, GUI_HEIGHT)) {
 		log_info("failed to initialize Zui");
-		return 1;
+		gui_term();
+		return false;
 	}
 
-	if (zui_static_text_create(0, "wiiupcx", (struct vec2i){GUI_WIDTH / 2, 20})) {
-		log_info("failed to initialize zui window");
-		return 1;
-	}
-	
-
-	return 0;
+	return true;
 }
 
 void gui_term(void)
@@ -110,10 +109,10 @@ void gui_term(void)
 }
 
 
-int gui_win_update(void)
+gui_event_t gui_win_update(void)
 {
 	if (wm_destroy_request)
-		return 1;
+		return GUI_EVENT_WM_DESTROY;
 
 	while (PeekMessageA(&msg_mainwin, hwnd_mainwin, 0, 0, PM_REMOVE))
 		DispatchMessage(&msg_mainwin);
@@ -130,6 +129,8 @@ int gui_win_update(void)
 
 
 	EndPaint(hwnd_mainwin, &paintstruct);
+
+	Sleep(1000 / 60);
 
 	return 0;
 }

@@ -344,15 +344,21 @@ static struct buffer_object buffer_objs[MAX_BUFFER_OBJECTS];
 static unsigned long long workbuffer_byte_cnt = 0;
 static void* workbuffer = NULL;
 
-static struct size2i targetbuffer_size = { 0, 0 };
+static struct vec2i targetbuffer_size = { 0, 0 };
 static void* targetbuffer = NULL;
 
 
-static void zui_text_render(
+static void* workbuffer_idx_to_ptr(unsigned long long idx)
+{
+	assert(idx >= 0 && workbuffer != NULL);
+	return (((unsigned char*)workbuffer) + idx);
+}
+
+static void draw_text(
 	const char* str,
 	const int len,
 	struct rgb24* dest_orig,
-	const struct size2i dest_size
+	const struct vec2i dest_size
 )
 {
 
@@ -362,7 +368,7 @@ static void zui_text_render(
 	int idx;
 	char c;
 
-	memset(dest_orig, 0x00, dest_size.w * dest_size.h * 3);
+	memset(dest_orig, 0x00, dest_size.x * dest_size.y * 3);
 
 	for (int i = 0; i < len; ++i) {
 		c = str[i];
@@ -373,11 +379,14 @@ static void zui_text_render(
 			idx = (c - 65) + 10;
 		} else if (c >= 97 && c <= 122) {
 			idx = (c - 97) + 10;
+		} else if (c == '.') {
+			idx = 40;
 		} else if (c == ' ') {
 			dest_x += CHAR_W + 1;
-			if (dest_x >= dest_size.w)
+			if (dest_x >= dest_size.x)
 				dest_x = 0;
 			continue;
+
 		} else if (c == '\n') {
 			dest_y += CHAR_H + 1;
 			dest_x = 0;
@@ -391,63 +400,57 @@ static void zui_text_render(
 			((idx % CHARS_PER_LINE) * CHAR_W)
 		];
 		
-		struct rgb24* dest = dest_orig + (dest_y * dest_size.w) + dest_x;
+		struct rgb24* dest = dest_orig + (dest_y * dest_size.x) + dest_x;
 
 		for (int cy = 0; cy < CHAR_H; ++cy) {
 			for (int cx = 0; cx < CHAR_W; ++cx) {
-				dest[(cy * dest_size.w) + cx] = src[(cy * CHARSET_W) + cx];
+				dest[(cy * dest_size.x) + cx] = src[(cy * CHARSET_W) + cx];
 			}
 		}
 
 		dest_x += CHAR_W + 1;
-		if (dest_x >= dest_size.w)
+		if (dest_x >= dest_size.x)
 			dest_x = 0;
 	}
 
 }
 
-static void* workbuffer_idx_to_ptr(unsigned long long idx)
-{
-	assert(idx >= 0 && workbuffer != NULL);
-	return (((unsigned char*)workbuffer) + idx);
-}
-
-static void zui_pixcpy(
+static void pixel_copy(
   struct rgb24* dest,
   const struct rgb24* src,
-  struct size2i dest_size,
+  struct vec2i dest_size,
   struct recti src_rect
 )
 {
-	dest += src_rect.y * dest_size.w + src_rect.x;
-	for (int y = 0; y < src_rect.h; ++y) {
-		memcpy(dest, src, src_rect.w * 3);
-		dest += dest_size.w;
-		src += src_rect.w;
+	dest += src_rect.coord.y * dest_size.x + src_rect.coord.x;
+	for (int y = 0; y < src_rect.size.y; ++y) {
+		memcpy(dest, src, src_rect.size.x * 3);
+		dest += dest_size.x;
+		src += src_rect.size.x;
 	}
 }
 
-static struct size2i get_text_required_buffer_size(const char* str)
+static struct vec2i get_text_required_buffer_size(const char* str)
 {
 	const int linelen = str_longest_line_len(str);
 	const int lines = 1 + str_chr_cnt(str, '\n');
 	const int w =  (linelen * CHAR_W) + linelen;
 	const int h = (lines * CHAR_H) + lines;
 
-	return (struct size2i){ w, h };
+	return (struct vec2i) { .x = w, .y = h };
 }
 
 
 
-int zui_init(void* fb, int w, int h)
+bool zui_init(const char* title, void* framebuffer, int w, int h)
 {
-	assert(fb != NULL && w >= 480 && h >= 360);
+	assert(title != NULL && framebuffer != NULL && w >= 480 && h >= 360);
 
-	targetbuffer = fb;
-	targetbuffer_size.w = w;
-	targetbuffer_size.h = h;
+	targetbuffer = framebuffer;
+	targetbuffer_size.x = w;
+	targetbuffer_size.y = h;
 
-	struct rgb24* dest = fb;
+	struct rgb24* dest = framebuffer;
 	const struct rgb24* hbord = (void*)hborder_data;
 	const struct rgb24* vbord = (void*)vborder_data;
 	
@@ -465,12 +468,14 @@ int zui_init(void* fb, int w, int h)
 		}
 	}
 
-	return 0;
+	zui_static_text_create(0, title, (struct vec2i){ .x = w / 2, VBORDER_H + 14});
+
+	return true;
 }
 
 void zui_term(void)
 {
-
+	free(workbuffer);
 }
 
 int zui_static_text_create(int winid, const char* str, struct vec2i origin)
@@ -484,28 +489,29 @@ int zui_static_text_create(int winid, const char* str, struct vec2i origin)
 
 	const int id = buffer_objs_cnt++;
 
-	struct size2i size = get_text_required_buffer_size(str);
+	const struct vec2i size = get_text_required_buffer_size(str);
 
-	const int x = origin.x - (size.w / 2);
-	const int y = origin.y - (size.h / 2);
+	const struct vec2i coord = { 
+		.x = origin.x - (size.x / 2), 
+		.y = origin.y - (size.y / 2)
+	};
 
 	buffer_objs[id].rect = (struct recti) {
-		x, y, size.w, size.h
+		.coord = coord,
+		.size = size
 	};
+
 	buffer_objs[id].buffer_idx = workbuffer_byte_cnt;
 
-	workbuffer_byte_cnt += size.w * size.h * 3;
+	workbuffer_byte_cnt += size.x * size.y * 3;
 	workbuffer = realloc(workbuffer, workbuffer_byte_cnt);
 	assert(workbuffer != NULL);
 
-	zui_text_render(
+	draw_text(
 		str,
 		strlen(str),
 		workbuffer_idx_to_ptr(buffer_objs[id].buffer_idx),
-		(struct size2i){ 
-			.w = buffer_objs[id].rect.w, 
-			.h = buffer_objs[id].rect.h
-		}
+		buffer_objs[id].rect.size
 	);
 
 	return id;
@@ -520,7 +526,7 @@ void zui_render(void)
 {
 	for (int i = 0; i < buffer_objs_cnt; ++i) {
 		struct buffer_object* obj = &buffer_objs[i];
-		zui_pixcpy(
+		pixel_copy(
 			targetbuffer,
 			workbuffer_idx_to_ptr(obj->buffer_idx),
 			targetbuffer_size,

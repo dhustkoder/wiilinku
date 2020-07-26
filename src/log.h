@@ -1,5 +1,8 @@
 #ifndef WIIUPCX_LOG_H_
 #define WIIUPCX_LOG_H_
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 #include "utils.h"
 
 enum log_level {
@@ -12,7 +15,7 @@ typedef void(*log_user_flusher_fp_t)(const char* buf, int size);
 
 
 extern void log_term(void);
-extern int log_init(log_user_flusher_fp_t uflusher);
+extern bool log_init(log_user_flusher_fp_t uflusher);
 extern void log_flush(void);
 extern void log_internal_write(enum log_level lvl, const char* fmt, ...);
 
@@ -78,11 +81,11 @@ void log_internal_write(enum log_level lvl, const char* fmt, ...)
 }
 
 
-int log_init(log_user_flusher_fp_t uflusher)
+bool log_init(log_user_flusher_fp_t uflusher)
 {
 	log_user_flusher_fp = uflusher;
 	memset(log_internal_buffer, 0, sizeof log_internal_buffer);
-	return 0;
+	return true;
 }
 
 void log_term(void)

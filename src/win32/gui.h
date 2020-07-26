@@ -1,11 +1,23 @@
 #ifndef WIIUPCX_HOST_GUI_H_
 #define WIIUPCX_HOST_GUI_H_
-#include <windows.h>
-#include <stdint.h>
+#include "utils.h"
 
-extern int gui_init(HINSTANCE hInstance, int nCmdShow);
-extern BOOL gui_win_update(void);
+enum gui_event {
+	GUI_EVENT_NONE = 0,
+	GUI_EVENT_WM_DESTROY = 1
+};
+
+typedef int gui_event_t;
+
+
+extern bool gui_init(
+	const char* ip,
+	unsigned short port
+);
+
+extern gui_event_t gui_win_update(void);
+
 extern void gui_term(void);
-extern void gui_render(BYTE* data, int width, int height, int bpp);
-extern void gui_log_write(const char* p);
+
+
 #endif

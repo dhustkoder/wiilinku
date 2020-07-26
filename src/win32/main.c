@@ -1,13 +1,13 @@
+#include <windows.h>
 #include <stdint.h>
 #include <limits.h>
 #include <stdio.h>
 #include "gui.h"
 #include "x360emu.h"
-
-#define NETN_IMPLEMENTATION
-#include "netn.h"
+#include "networking.h"
 
 #define LOG_IMPLEMENTATION
+#define LOG_IMMEDIATE_MODE
 #include "log.h"
 
 static HANDLE stdout_handle;
@@ -18,65 +18,89 @@ static void log_buffer_flusher(const char* log_buffer, int size)
 }
 
 
-static int init_platform(HINSTANCE hins, int ncmd)
+static bool init_platform(void)
 {
 	AttachConsole(ATTACH_PARENT_PROCESS);
 	stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+	WriteConsoleA(stdout_handle, "\n", 1, NULL, NULL);
 
-	if (log_init(log_buffer_flusher))
-		return 1;
+	const char* ip;
+	unsigned short port;
 
-	log_info("\nLog Initialized!");
+	if (!log_init(log_buffer_flusher))
+		return false;
 
-	if (gui_init(hins, ncmd))
-		return 1;
+	if (!networking_init(&ip, &port))
+		return false;
 
-	log_info("GUI Initialized");
+	if (!x360emu_init())
+		return false;
 
-	if (x360emu_init())
-		return 1;
+	if (!gui_init(ip, port))
+		return false;
 
-	log_info("x360emu Initialized");
-
-	if (netn_init())
-		return 1;
-
-	log_info("Net Initialized");
-
-	return 0;
+	return true;
 }
 
 static void terminate_platform(void)
 {
-	netn_term();
 	x360emu_term();
 	gui_term();
+	networking_term();
 	log_term();
 	FreeConsole();
 }
 
-
-static DWORD WINAPI jin_thread_main(LPVOID param)
+static DWORD WINAPI networking_main_thread(LPVOID param)
 {
 	((void)param);
-	struct netn_joy_packet jpkt;
+	
+
+	/* input loop */
+	struct input_packet pack;
+
+	int connected = 0;
+
 	for (;;) {
-		
-		if (netn_joy_update(&jpkt))
-			log_info("ERROR RECV INPUT");
 
-		/*
-		log_info(
-			"GAMEPAD: %.8X %.4X %.4X %.4X %.4X\n"
-			"WIIMOTE: %.8X",
-			jpkt.gamepad.btns, 
-			jpkt.gamepad.lsx, jpkt.gamepad.lsy, 
-			jpkt.gamepad.rsx, jpkt.gamepad.rsy,
-			jpkt.wiimote.btns
-		);*/
+		if (!connected) {
+			if (networking_try_handshake()) {
+				connected = 1;
+			}
+		}
 
-		x360emu_update(&jpkt);
+		if (connected) {
+			if (!networking_input_update(&pack)) {
+				connected = 0;
+			}
+			log_info(
+				"CONNECTED: %d\n"
+				"GAMEPAD: %.8X %.4X %.4X %.4X %.4X\n"
+				"WIIMOTE: %.8X",
+				connected,
+				pack.gamepad.btns, 
+				pack.gamepad.lsx, pack.gamepad.lsy, 
+				pack.gamepad.rsx, pack.gamepad.rsy,
+				pack.wiimotes[0].btns
+			);
+		}
+
+
+
+		x360emu_update(&pack);
 	}
+
+	return EXIT_SUCCESS;
+}
+
+int gui_main_thread(void)
+{
+	for (;;) {
+		if (gui_win_update() == GUI_EVENT_WM_DESTROY)
+			break;
+	}
+
+	return EXIT_SUCCESS;
 }
 
 int CALLBACK WinMain(HINSTANCE hInstance,
@@ -84,34 +108,33 @@ int CALLBACK WinMain(HINSTANCE hInstance,
                      LPSTR lpCmdLine,
                      const int nCmdShow)
 {
+	((void)hInstance);
 	((void)hPrevInstance);
 	((void)lpCmdLine);
+	((void)lpCmdLine);
+	((void)(nCmdShow));
 
-	if (init_platform(hInstance, nCmdShow))
-		return 1;
-/*
+	if (!init_platform())
+		return EXIT_FAILURE;
+
+
 	DWORD thread_id;
-	HANDLE jin_thread_handle = CreateThread(
+	HANDLE joypads_thread_handle = CreateThread(
 		NULL,
 		0,
-		jin_thread_main,
+		networking_main_thread,
 		NULL,
 		0,
 		&thread_id
 	);
-*/
-	for (;;) {
-		if (gui_win_update())
-			break;
-		
-		log_flush();
-	}
-/*
-	if (!TerminateThread(jin_thread_handle, 0)) {
+
+	int ret = gui_main_thread();
+
+	if (!TerminateThread(joypads_thread_handle, 0)) {
 		log_info("failed to terminate thread: %d", GetLastError());
 	}
-*/
+
 	terminate_platform();
 
-	return 0;
+	return ret;
 }
