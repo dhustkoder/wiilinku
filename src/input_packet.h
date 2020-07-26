@@ -96,7 +96,7 @@ struct wiimote {
 };
 
 struct input_packet {
-   uint8_t flags;
+   int flags;
    struct wiiu_gamepad gamepad;
    struct wiimote wiimotes[4];
 };

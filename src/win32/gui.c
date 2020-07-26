@@ -130,7 +130,7 @@ gui_event_t gui_win_update(void)
 
 	EndPaint(hwnd_mainwin, &paintstruct);
 
-	Sleep(1000 / 60);
+	Sleep(1000 / 58);
 
 	return 0;
 }

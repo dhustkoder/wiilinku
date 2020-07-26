@@ -9,7 +9,7 @@
 
 
 #define LOG_IMPLEMENTATION
-#define LOG_MAX_LINES (6)
+#define LOG_MAX_LINES (3)
 #include "log.h"
 
 
@@ -70,9 +70,40 @@ static void platform_term(void)
 	WHBProcShutdown();
 }
 
-volatile int connection_status = 0;
-volatile int program_termination_requested = 0;
+volatile int connected = 0;
 
+static int networking_main_thread(int argc, const char** argv)
+{
+	struct input_packet input;
+	memset(&input, 0, sizeof input);
+
+	for (;;) {
+		while (!connected) {
+			inputman_update(&input);
+
+			if (input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
+				goto Lexit;
+
+			if (networking_try_handshake("192.168.15.7", 7173)) {
+				connected = 1;
+			}
+		}
+		
+		while (connected) {
+			inputman_update(&input);
+
+			if (input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
+				goto Lexit;
+
+			if (!networking_input_update(&input)) {
+				connected = 0;
+			}
+		}
+
+	}
+Lexit:
+	return EXIT_SUCCESS;
+}
 
 
 static int gui_main_thread(void)
@@ -80,19 +111,11 @@ static int gui_main_thread(void)
 
 	struct input_packet input;
 
-	int connected = 0;
-
 	for (;;) {
-		video_render_clear();
-		video_render_text(0, 0, logo_ascii);
-		video_render_text_aligned(35, 10, input_log);
+		inputman_fetch(&input);
 
-		if (!connected) {
-			if (networking_try_handshake("192.168.15.7", 7173))
-				connected = 1;
-		}
-
-		inputman_update(&input);
+		if (input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
+			break;
 
 		sprintf(
 			input_log,
@@ -104,16 +127,9 @@ static int gui_main_thread(void)
 			input.wiimotes[0].btns
 		);
 
-		if (input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
-			break;
-
-		if (connected) {
-			if (!networking_input_update(&input))
-				connected = 0;
-			else
-				log_info("send success");
-		}
-
+		video_render_clear();
+		video_render_text(0, 0, logo_ascii);
+		video_render_text_aligned(35, 10, input_log);
 		log_flush();
 		video_render_flip();
 	}
@@ -127,7 +143,7 @@ int main(void)
 	if (!platform_init())
 		return EXIT_FAILURE;
 	
-	// OSRunThread(OSGetDefaultThread(0), networking_main_thread, 0, NULL);
+	OSRunThread(OSGetDefaultThread(0), networking_main_thread, 0, NULL);
 	
 	int ret = gui_main_thread();
 

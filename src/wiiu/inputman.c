@@ -10,7 +10,8 @@
 static VPADReadError verror;
 static VPADStatus vpad;
 static KPADStatus kpads[4];
-static uint8_t kpad_connected[4];
+static volatile uint8_t kpad_connected[4] = { 0, 0, 0, 0 };
+
 	
 void wpad_connection_callback(WPADChan chan, int32_t status)
 {
@@ -21,6 +22,8 @@ void wpad_connection_callback(WPADChan chan, int32_t status)
 	);
 
 	kpad_connected[chan] = status == 0 ? 1 : 0;
+	if (!kpad_connected[chan])
+		memset(&kpads[chan], 0, sizeof kpads[chan]);
 }
 
 void inputman_init(void)
@@ -33,6 +36,9 @@ void inputman_init(void)
 	WPADSetConnectCallback(WPAD_CHAN_1, wpad_connection_callback);
 	WPADSetConnectCallback(WPAD_CHAN_2, wpad_connection_callback);
 	WPADSetConnectCallback(WPAD_CHAN_3, wpad_connection_callback);
+
+	memset(kpads, 0, sizeof kpads);
+	memset(&vpad, 0, sizeof vpad);
 }
 
 void inputman_term(void)
@@ -44,9 +50,11 @@ void inputman_term(void)
 void inputman_update(struct input_packet* pack)
 {
 	VPADRead(VPAD_CHAN_0, &vpad, 1, &verror);
+
 	for (int i = 0; i < 4; ++i) {
-		if (kpad_connected[i])
+		if (kpad_connected[i]) {
 			WPADRead(i, &kpads[i]);
+		}
 	}
 
 	inputman_fetch(pack);

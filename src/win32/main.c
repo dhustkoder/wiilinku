@@ -51,43 +51,48 @@ static void terminate_platform(void)
 	FreeConsole();
 }
 
+struct input_packet input;
+volatile int connected = 0;
+volatile DWORD average_ms_input = 0;
+
 static DWORD WINAPI networking_main_thread(LPVOID param)
 {
 	((void)param);
 	
 
 	/* input loop */
-	struct input_packet pack;
 
-	int connected = 0;
+	DWORD tickcnt;
+	DWORD lasttick;
+	int input_frame_cnt = 0;
 
 	for (;;) {
 
-		if (!connected) {
-			if (networking_try_handshake()) {
+		while (!connected) {
+			if (networking_try_handshake())
 				connected = 1;
-			}
 		}
 
-		if (connected) {
-			if (!networking_input_update(&pack)) {
+		tickcnt = 0;
+
+		while (connected) {
+			lasttick = GetTickCount();
+
+			if (!networking_input_update(&input)) {
+				memset(&input, 0, sizeof input);
 				connected = 0;
 			}
-			log_info(
-				"CONNECTED: %d\n"
-				"GAMEPAD: %.8X %.4X %.4X %.4X %.4X\n"
-				"WIIMOTE: %.8X",
-				connected,
-				pack.gamepad.btns, 
-				pack.gamepad.lsx, pack.gamepad.lsy, 
-				pack.gamepad.rsx, pack.gamepad.rsy,
-				pack.wiimotes[0].btns
-			);
+
+			tickcnt += GetTickCount() - lasttick;
+			if (++input_frame_cnt >= 60) {
+				average_ms_input = tickcnt / input_frame_cnt;
+				tickcnt = 0;
+				input_frame_cnt = 0;
+			}
+
+			x360emu_update(&input);
 		}
 
-
-
-		x360emu_update(&pack);
 	}
 
 	return EXIT_SUCCESS;
@@ -98,6 +103,18 @@ int gui_main_thread(void)
 	for (;;) {
 		if (gui_win_update() == GUI_EVENT_WM_DESTROY)
 			break;
+		log_info(
+			"CONNECTED: %d\n"
+			"GAMEPAD: %.8X %.4X %.4X %.4X %.4X\n"
+			"WIIMOTE: %.8X\n"
+			"AVERAGE INPUT FRAME TIME: %d (ms)",
+			connected,
+			input.gamepad.btns, 
+			input.gamepad.lsx, input.gamepad.lsy, 
+			input.gamepad.rsx, input.gamepad.rsy,
+			input.wiimotes[0].btns,
+			average_ms_input
+		);
 	}
 
 	return EXIT_SUCCESS;

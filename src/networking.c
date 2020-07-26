@@ -28,7 +28,7 @@ typedef int socket_t;
 #include "networking.h"
 
 
-
+#define NETWORKING_MAX_RETRIES (6)
 #define MAX_PACKET_BLOCK_SIZE (1400)
 
 
@@ -41,29 +41,26 @@ static unsigned short local_network_port;
 static struct sockaddr_in client_addr;
 #endif /* WIIUPCX_HOST */
 
-unsigned int retval_cnt = 0;
+
+
 static bool sock_wait_for_data(socket_t sock) 
 {
-#if defined(_WIN32)
-
 	fd_set readfd;
 
 	FD_ZERO(&readfd);
 	FD_SET(sock, &readfd);
+	struct timeval timer;
 
-	struct timeval timer = {
-		.tv_sec = 3,
-		.tv_usec = 0
-	};
+#if defined(_WIN32)
+	timer.tv_sec = 0;
+	timer.tv_usec = 600000;
 
 	int retval = select(sock + 1, &readfd, NULL, NULL, &timer);
 
 #elif defined(__WIIU__)
-
-	const unsigned long long ticks_to_wait = OSSecondsToTicks(1);
+	int retval;
+	const unsigned long long ticks_to_wait = OSMillisecondsToTicks(60);
 	const unsigned long long ticks = OSGetSystemTick();
-	
-	int retval = 0;
 	timer.tv_sec = 0;
 	timer.tv_usec = 0;
 
@@ -75,7 +72,10 @@ static bool sock_wait_for_data(socket_t sock)
 
 #endif
 
+	/*
+	static unsigned retval_cnt = 0;
 	log_info("RETVAL: %d | %d", retval, retval_cnt++);
+	*/
 
 	return retval > 0;
 }
@@ -88,10 +88,8 @@ static bool send_packet(socket_t sock, const void* data, int size)
 
 		int ret = send(sock, data, block_size, 0);
 
-		if (ret < block_size) {
-			log_info("ERROR SENDING PACKET");
+		if (ret < block_size)
 			return false;
-		}
 
 		size -= block_size;
 		data = ((uint8_t*)data) + block_size;
@@ -105,19 +103,15 @@ static bool recv_packet(socket_t sock, void* data, int size)
 	if (!sock_wait_for_data(sock))
 		return false;
 
-	int len = size;
-
-	while (len > 0) {
-		const int block_size = len > MAX_PACKET_BLOCK_SIZE ? MAX_PACKET_BLOCK_SIZE : len;
+	while (size > 0) {
+		const int block_size = size > MAX_PACKET_BLOCK_SIZE ? MAX_PACKET_BLOCK_SIZE : size;
 
 		int ret = recv(sock, data, block_size, 0);
 
-		if (ret < block_size) {
-			log_info("ERROR RECEIVING PACKET");
+		if (ret < block_size)
 			return false;
-		}
 
-		len -= block_size;
+		size -= block_size;
 		data = ((uint8_t*)data) + block_size;
 	}
 
@@ -137,12 +131,9 @@ static bool host_recv_first_packet(socket_t sock, void* data, int size)
 	memset(&client_addr, 0, sizeof client_addr);
 
 	int from_length = sizeof client_addr;
-	int len = size;
 
-
-
-	while (len > 0) {
-		const int block_size = len > MAX_PACKET_BLOCK_SIZE ? MAX_PACKET_BLOCK_SIZE : len;
+	while (size > 0) {
+		const int block_size = size > MAX_PACKET_BLOCK_SIZE ? MAX_PACKET_BLOCK_SIZE : size;
 
 		int ret = recvfrom(
 			sock,
@@ -153,12 +144,10 @@ static bool host_recv_first_packet(socket_t sock, void* data, int size)
 			&from_length
 		);
 
-		if (ret < block_size) {
-			log_info("ERROR RECEIVING PACKET");
+		if (ret < block_size)
 			return false;
-		}
 
-		len -= block_size;
+		size -= block_size;
 		data = ((uint8_t*)data) + block_size;
 	}
 
@@ -166,12 +155,12 @@ static bool host_recv_first_packet(socket_t sock, void* data, int size)
 }
 
 
-static int host_init_socks(void)
+static bool host_init_socks(void)
 {
     joypad_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (joypad_sock <= 0) {
     	log_info("failed to start socket");
-    	return 1;
+    	return false;
     }
 
 	struct sockaddr_in address;
@@ -181,38 +170,36 @@ static int host_init_socks(void)
 
 	if (bind(joypad_sock, (const struct sockaddr*)&address, sizeof address) != 0) {
 		log_info("failed to bind socket");
-		return 1;
+		return false;
 	}
 
-
-
-	return 0;
+	return true;
 }
 
-static int host_fill_ip_and_port(void)
+static bool host_fill_ip_and_port(void)
 {
 	struct sockaddr_in address;
 	int namelen = sizeof address;
 	while (getsockname(joypad_sock, (struct sockaddr*)&address, &namelen) != 0) {
 		log_info("failed to getsockname: %d", WSAGetLastError());
-		return 1;
+		return false;
 	}
 
 	if (gethostname(hostname, sizeof(hostname)) != 0) {
 		log_info("failed to gethostname: %d", WSAGetLastError());
-		return 1;
+		return false;
 	}
 
 	struct hostent *phe = gethostbyname(hostname);
 	if (phe == NULL || phe->h_addr_list == NULL || phe->h_addr_list[0] == NULL) {
 		log_info("failed to gethostbyname");
-		return 1;
+		return false;
 	}
 
 	memcpy(&local_network_ip, phe->h_addr_list[0], sizeof(struct in_addr));
 	local_network_port = ntohs(address.sin_port);
 
-	return 0;
+	return true;
 }
 
 bool networking_init(const char** ip, unsigned short* port)
@@ -226,10 +213,10 @@ bool networking_init(const char** ip, unsigned short* port)
     }
 #endif /* _WIN32 */
 
-    if (host_init_socks() != 0)
+    if (!host_init_socks())
     	return false;
 
-	if (host_fill_ip_and_port() != 0) 
+	if (!host_fill_ip_and_port()) 
 		return false;
 
 	*ip = inet_ntoa(local_network_ip);
@@ -359,21 +346,39 @@ bool networking_try_handshake(const char* ip, unsigned short port)
 	return true;
 }
 
+bool networking_packet_exchange(socket_t sock, void* outpack, int outsize, void* inpack, int insize)
+{
+#ifdef WIIUPCX_HOST
+	if (!recv_packet(sock, inpack, insize))
+		return false;
+	if (!send_packet(sock, outpack, outsize))
+		return false;
+#else
+	if (!send_packet(sock, outpack, outsize))
+		return false;
+	if (!recv_packet(sock, inpack, insize))
+		return false;
+#endif
+
+	return true;
+}
+
 
 bool networking_input_update(struct input_packet* packet)
 {
 	static struct command_packet cmd;
+	int retries = 0;
 
 #if defined(WIIUPCX_HOST)
 	
-	if (!recv_packet(joypad_sock, packet, sizeof *packet) != 0)
-		return false;
+	cmd.cmd = COMMAND_PACKET_RECEIVED;
 
- 	cmd = (struct command_packet) {
-		.cmd = COMMAND_PACKET_RECEIVED
-	};
+	do {
+		if (networking_packet_exchange(joypad_sock, &cmd, sizeof cmd, packet, sizeof *packet))
+			break;
+	} while (++retries < NETWORKING_MAX_RETRIES);
 
-	if (!send_packet(joypad_sock, &cmd, sizeof cmd))
+	if (retries >= NETWORKING_MAX_RETRIES)
 		return false;
 
 	uint32_t btns = packet->gamepad.btns;
@@ -398,24 +403,22 @@ bool networking_input_update(struct input_packet* packet)
 	packet->gamepad.lsy = (lsy&0xFF00)>>8|
 	                    (lsy&0x00FF)<<8;
 
-
 	btns = packet->wiimotes[0].btns;
 	packet->wiimotes[0].btns = (btns&0xFF)<<24|
 	                     (btns&0xFF000000)>>24|
 	                     (btns&0xFF0000)>>8|
 	                     (btns&0x00FF00)<<8;
-
+   
 #elif defined(WIIUPCX_CLIENT)
+	memset(&cmd, 0, sizeof cmd);
 
-	if (!send_packet(joypad_sock, packet, sizeof *packet))
+	do {
+		if (networking_packet_exchange(joypad_sock, packet, sizeof *packet, &cmd, sizeof cmd))
+			break;
+	} while (++retries < NETWORKING_MAX_RETRIES);
+
+	if (retries >= NETWORKING_MAX_RETRIES || cmd.cmd != COMMAND_PACKET_RECEIVED)
 		return false;
-
-	if (!recv_packet(joypad_sock, &cmd, sizeof cmd))
-		return false;
-
-	if (cmd.cmd != COMMAND_PACKET_RECEIVED)
-		return false;
-
 
 #endif
 

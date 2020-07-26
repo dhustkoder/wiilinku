@@ -38,7 +38,7 @@ extern void log_internal_write(enum log_level lvl, const char* fmt, ...);
 #endif /* LOG_INTERNAL_BUFFER_SIZE */
 
 #ifndef LOG_MAX_LINES
-#define LOG_MAX_LINES 10
+#define LOG_MAX_LINES 3
 #endif
 
 
