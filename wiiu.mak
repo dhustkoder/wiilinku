@@ -26,17 +26,15 @@ INCLUDES	:=	src src/wiiu
 #-------------------------------------------------------------------------------
 # options for code generation
 #-------------------------------------------------------------------------------
-CFLAGS	:=	-g -Wall -Wextra -O2 -ffunction-sections \
-			$(MACHDEP)
+CFLAGS	 :=	-g -Wall -Wextra -O2 -ffunction-sections $(MACHDEP) \
+           $(INCLUDE) -D__WIIU__ -D__WUT__ -DWIIUPCX_CLIENT
 
-CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DWIIUPCX_CLIENT
-
-CXXFLAGS	:= $(CFLAGS)
+CXXFLAGS := $(CFLAGS)
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
+LDFLAGS	 =  -g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lwut
+LIBS     := -lwut
 
 #-------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level
