@@ -1,6 +1,7 @@
 @echo off
 set BUILD_TYPE=%1
 set RUN_AFTER_BUILD="%2"=="run"
+if not %RUN_AFTER_BUILD% set RUN_AFTER_BUILD="%1"=="run"
 
 
 set CC=cl
@@ -56,5 +57,5 @@ set ERROR=%errorLevel%
 :clean
 del *.obj *.pdb
 
-if  %ERROR%==0 ( if %RUN_AFTER_BUILD% .\build\wiiupcx.exe )
+if  %ERROR%==0 ( if %RUN_AFTER_BUILD% .\%BUILD_DIR%\wiiupcx.exe )
 
