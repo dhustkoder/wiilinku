@@ -17,8 +17,14 @@ include $(DEVKITPRO)/wut/share/wut_rules
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
 #-------------------------------------------------------------------------------
-TARGET		:=	wiiu_build/wiiupcx
-BUILD		:=	wiiu_build
+ifeq ($(BUILD_TYPE),Release)
+BUILD		:=	wiiu_release_build
+else
+BUILD_TYPE   = Debug
+BUILD       := wiiu_debug_build
+endif
+
+TARGET		:=	$(BUILD)/wiiupcx
 SOURCES		:=	src src/wiiu
 DATA		:=	data
 INCLUDES	:=	src src/wiiu
@@ -26,13 +32,23 @@ INCLUDES	:=	src src/wiiu
 #-------------------------------------------------------------------------------
 # options for code generation
 #-------------------------------------------------------------------------------
-CFLAGS	 :=	-g -Wall -Wextra -O2 -ffunction-sections $(MACHDEP) \
-           $(INCLUDE) -D__WIIU__ -D__WUT__ -DWIIUPCX_CLIENT
+CFLAGS   := -D__WIIU__ -D__WUT__ -DWIIUPCX_CLIENT \
+            $(INCLUDE) $(MACHDEP) -Wall -Wextra  -ffunction-sections
+ifeq ($(BUILD_TYPE),Release)
+CFLAGS	 +=	-g  -O2 
+else
+CFLAGS   += -O0 -g
+endif
 
 CXXFLAGS := $(CFLAGS)
 
-ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	 =  -g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
+ifeq ($(BUILD_TYPE),Debug)
+ASFLAGS := -g
+LDFLAGS  = -g
+endif
+
+ASFLAGS	+=	$(ARCH)
+LDFLAGS	+=  $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
 LIBS     := -lwut
 
