@@ -9,4 +9,4 @@
 *.lst  
 *.dmp
 *_build
-.vscode:
+.vscode
