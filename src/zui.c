@@ -350,7 +350,7 @@ static void* targetbuffer = NULL;
 
 static void* workbuffer_idx_to_ptr(unsigned long long idx)
 {
-	assert(idx >= 0 && workbuffer != NULL);
+	assert(workbuffer != NULL);
 	return (((unsigned char*)workbuffer) + idx);
 }
 
