@@ -1,8 +1,9 @@
 #include <windows.h>
 #include <stdio.h>
-#include "gui.h"
+#include "connection.h"
 #include "log.h"
 #include "zui.h"
+#include "gui.h"
 
 
 #define GUI_WIDTH  (480)
@@ -63,9 +64,7 @@ static LRESULT window_proc_clbk(HWND hwnd,
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-bool gui_init(const char* ip,
-             unsigned short port
-)
+bool gui_init(void)
 {
 	memset(&wc, 0, sizeof(wc));
 	wc.lpfnWndProc   = window_proc_clbk;
@@ -89,6 +88,9 @@ bool gui_init(const char* ip,
 
 	hdc_mainwin = GetDC(hwnd_mainwin);
 
+	char* ip;
+	short port;
+	connection_get_address(&ip, &port);
 
 	char title_buffer[512];
 	sprintf(title_buffer, "wiiupcx - ip %s - port %d", ip, port);

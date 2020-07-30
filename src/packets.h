@@ -1,5 +1,5 @@
-#ifndef WIIUPCS_CLIENT_PADS_H_
-#define WIIUPCS_CLIENT_PADS_H_
+#ifndef WIIUPCX_PACKETS_H_
+#define WIIUPCX_PACKETS_H_
 #include "utils.h"
 
 
@@ -74,13 +74,6 @@ enum wiimote_btn {
    WIIMOTE_BTN_HOME                    = 0x80000000,
 };
 
-enum INPUT_PACKET_FLAGS {
-   INPUT_PACKET_FLAG_GAMEPAD   = 0x01,
-   INPUT_PACKET_FLAG_WIIMOTE_0 = 0x02,
-   INPUT_PACKET_FLAG_WIIMOTE_1 = 0x04,
-   INPUT_PACKET_FLAG_WIIMOTE_2 = 0x08,
-   INPUT_PACKET_FLAG_WIIMOTE_3 = 0x10
-};
 
 struct wiiu_gamepad {
 	uint32_t btns;
@@ -95,10 +88,31 @@ struct wiimote {
 	uint32_t btns;
 };
 
+
+enum INPUT_PACKET_FLAGS {
+   INPUT_PACKET_FLAG_GAMEPAD   = 0x01,
+   INPUT_PACKET_FLAG_WIIMOTE_0 = 0x02,
+   INPUT_PACKET_FLAG_WIIMOTE_1 = 0x04,
+   INPUT_PACKET_FLAG_WIIMOTE_2 = 0x08,
+   INPUT_PACKET_FLAG_WIIMOTE_3 = 0x10
+};
+
 struct input_packet {
    int flags;
    struct wiiu_gamepad gamepad;
    struct wiimote wiimotes[4];
+};
+
+
+enum CMD_PACKET_TYPE {
+   CMD_PACKET_TYPE_INPUT = 0x01
+};
+
+struct cmd_packet {
+   uint8_t type;
+   union {
+      struct input_packet input;
+   };
 };
 
 

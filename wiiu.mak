@@ -37,7 +37,7 @@ CFLAGS   := -D__WIIU__ -D__WUT__ -DWIIUPCX_CLIENT \
 ifeq ($(BUILD_TYPE),Release)
 CFLAGS	 +=	-g  -O2 
 else
-CFLAGS   += -O0 -g
+CFLAGS   += -O0 -g -DDEBUG
 endif
 
 CXXFLAGS := $(CFLAGS)

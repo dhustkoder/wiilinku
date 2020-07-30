@@ -1,6 +1,6 @@
 #ifndef WIIUPCX_INPUTMAN_H_
 #define WIIUPCX_INPUTMAN_H_
-#include "input_packet.h"
+#include "packets.h"
 
 
 extern void inputman_init(void);

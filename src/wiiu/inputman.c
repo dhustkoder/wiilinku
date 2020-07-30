@@ -2,7 +2,7 @@
 #include <padscore/kpad.h>
 #include <padscore/wpad.h>
 #include <stdint.h>
-#include "input_packet.h"
+#include "packets.h"
 #include "inputman.h"
 #include "log.h"
 

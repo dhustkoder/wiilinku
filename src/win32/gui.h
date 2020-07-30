@@ -10,10 +10,7 @@ enum gui_event {
 typedef int gui_event_t;
 
 
-extern bool gui_init(
-	const char* ip,
-	unsigned short port
-);
+extern bool gui_init(void);
 
 extern gui_event_t gui_win_update(void);
 

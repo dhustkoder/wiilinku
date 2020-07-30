@@ -3,7 +3,7 @@
 #include <whb/libmanager.h>
 #include <coreinit/thread.h>
 #include <stdlib.h>
-#include "networking.h"
+#include "connection.h"
 #include "inputman.h"
 #include "video.h"
 
@@ -47,7 +47,7 @@ static bool platform_init(void)
 	if (!video_init())
 		return false;
 
-	if (!networking_init())
+	if (!connection_init())
 		return false;
 
 	return true;
@@ -57,7 +57,7 @@ static bool platform_init(void)
 static void platform_term(void)
 {
 
-	networking_term();
+	connection_term();
 
 	video_term();
 
@@ -70,44 +70,14 @@ static void platform_term(void)
 	WHBProcShutdown();
 }
 
-volatile int connected = 0;
-
-static int networking_main_thread(int argc, const char** argv)
-{
-	struct input_packet input;
-	memset(&input, 0, sizeof input);
-
-	for (;;) {
-		while (!connected) {
-			inputman_update(&input);
-
-			if (input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
-				goto Lexit;
-
-			if (networking_try_handshake("192.168.15.7", 7173)) {
-				connected = 1;
-			}
-		}
-		
-		while (connected) {
-			inputman_update(&input);
-
-			if (input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
-				goto Lexit;
-
-			if (!networking_input_update(&input)) {
-				connected = 0;
-			}
-		}
-
-	}
-Lexit:
-	return EXIT_SUCCESS;
-}
-
 
 static int gui_main_thread(void)
 {
+
+	if (!connection_connect("192.168.15.7", 7173))
+		return EXIT_FAILURE;
+
+	log_debug("connected");
 
 	struct input_packet input;
 
@@ -119,10 +89,8 @@ static int gui_main_thread(void)
 
 		sprintf(
 			input_log,
-			"CONNECTED: %d\n"
 			"GAMEPAD BTNS: %.8X\n"
 			"WIIMOTE[0] BTNS: %.8X\n",
-			connected,
 			input.gamepad.btns,
 			input.wiimotes[0].btns
 		);
@@ -142,8 +110,6 @@ int main(void)
 {
 	if (!platform_init())
 		return EXIT_FAILURE;
-	
-	OSRunThread(OSGetDefaultThread(0), networking_main_thread, 0, NULL);
 	
 	int ret = gui_main_thread();
 

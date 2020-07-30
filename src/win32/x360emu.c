@@ -3,11 +3,17 @@
 #include "x360emu.h"
 #include "log.h"
 
+
+struct input_packet input_state;
+
+
+
 static struct vigem_x360_pad {
 	PVIGEM_CLIENT client;
 	PVIGEM_TARGET target;
 	XUSB_REPORT report;
 } x360_pad;
+
 
 static VOID CALLBACK x360_notification(
 	PVIGEM_CLIENT client,
@@ -75,8 +81,20 @@ void x360emu_term(void)
 
 void x360emu_update(struct input_packet* pack)
 {
-	const uint32_t wiiu_btns = pack->gamepad.btns;
-	const uint32_t wiimote_btns = pack->wiimotes[0].btns;
+	if (memcmp(&input_state, pack, sizeof input_state) == 0)
+		return;
+
+	memcpy(&input_state, pack, sizeof input_state);
+
+	log_debug(
+		"GAMEPAD BTNS: %.8X\n"
+		"WIIMOTE[0] BTNS: %.8X\n",
+		input_state.gamepad.btns,
+		input_state.wiimotes[0].btns
+	);
+
+	const uint32_t wiiu_btns = input_state.gamepad.btns;
+	const uint32_t wiimote_btns = 0;//input_state.wiimotes[0].btns;
 
 	x360_pad.report.wButtons = 0x00;
 
@@ -114,10 +132,10 @@ void x360emu_update(struct input_packet* pack)
 
 	x360_pad.report.bLeftTrigger = (wiiu_btns&WIIU_GAMEPAD_BTN_ZL) ? 0xFF : 0x00;
 	x360_pad.report.bRightTrigger = (wiiu_btns&WIIU_GAMEPAD_BTN_ZR) ? 0xFF : 0x00;
-	x360_pad.report.sThumbLX = pack->gamepad.lsx;
-	x360_pad.report.sThumbLY = pack->gamepad.lsy;
-	x360_pad.report.sThumbRX = pack->gamepad.rsx;
-	x360_pad.report.sThumbRY = pack->gamepad.rsy;
+	x360_pad.report.sThumbLX = input_state.gamepad.lsx;
+	x360_pad.report.sThumbLY = input_state.gamepad.lsy;
+	x360_pad.report.sThumbRX = input_state.gamepad.rsx;
+	x360_pad.report.sThumbRY = input_state.gamepad.rsy;
 
 	VIGEM_ERROR ret = vigem_target_x360_update(
 		x360_pad.client,
@@ -126,6 +144,6 @@ void x360emu_update(struct input_packet* pack)
 	);
 
 	if (ret != VIGEM_ERROR_NONE) {
-		log_info("Error on vigem target update: %X\n", ret);
+		log_debug("Error on vigem target update: %X\n", ret);
 	}
 }

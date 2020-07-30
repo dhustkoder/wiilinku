@@ -1,8 +1,7 @@
 #ifndef WIIUPCX_X360EMU_H_
 #define WIIUPCX_X360EMU_H_
 #include <stdint.h>
-#include "networking.h"
-#include "input_packet.h"
+#include "packets.h"
 
 
 
