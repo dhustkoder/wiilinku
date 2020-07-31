@@ -98,7 +98,7 @@ enum INPUT_PACKET_FLAGS {
 };
 
 struct input_packet {
-   int flags;
+   uint8_t flags;
    struct wiiu_gamepad gamepad;
    struct wiimote wiimotes[4];
 };

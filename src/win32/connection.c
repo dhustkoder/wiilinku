@@ -145,27 +145,25 @@ static void input_packet_reorder(struct input_packet* p)
 	const int16_t lsx = p->gamepad.lsx;
 	const int16_t lsy = p->gamepad.lsy;
 
-	p->gamepad.btns = (btns&0xFF)<<24|
-	                     (btns&0xFF000000)>>24|
-	                     (btns&0xFF0000)>>8|
-	                     (btns&0x00FF00)<<8;
+	p->gamepad.btns = BSWAP_32(btns);
 
-	p->gamepad.rsx = (rsx&0xFF00)>>8|
-	                    (rsx&0x00FF)<<8;
-	p->gamepad.rsy = (rsy&0xFF00)>>8|
-	                    (rsy&0x00FF)<<8;
+	p->gamepad.rsx = BSWAP_16(rsx);
 
-	p->gamepad.lsx = (lsx&0xFF00)>>8|
-	                    (lsx&0x00FF)<<8;
+	p->gamepad.rsy = BSWAP_16(rsy);
 
-	p->gamepad.lsy = (lsy&0xFF00)>>8|
-	                    (lsy&0x00FF)<<8;
+	p->gamepad.lsx = BSWAP_16(lsx);
+
+	p->gamepad.lsy = BSWAP_16(lsy);
 
 	btns = p->wiimotes[0].btns;
-	p->wiimotes[0].btns = (btns&0xFF)<<24|
-	                     (btns&0xFF000000)>>24|
-	                     (btns&0xFF0000)>>8|
-	                     (btns&0x00FF00)<<8;
+
+	p->wiimotes[0].btns = BSWAP_32(btns);
+}
+
+static void input_packet_handler(struct input_packet* p)
+{
+	input_packet_reorder(p);
+	x360emu_update(p);
 }
 
 
