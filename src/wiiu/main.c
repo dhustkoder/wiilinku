@@ -47,7 +47,7 @@ static bool platform_init(void)
 	if (!video_init())
 		return false;
 
-	if (!connection_init())
+	if (!connection_init(inputman_update))
 		return false;
 
 	return true;
@@ -80,6 +80,7 @@ static int gui_main_thread(void)
 	log_debug("connected");
 
 	struct input_packet input;
+	memset(&input, 0, sizeof input);
 
 	for (;;) {
 		inputman_fetch(&input);

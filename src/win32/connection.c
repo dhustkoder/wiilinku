@@ -1,6 +1,5 @@
 #include <WinSock2.h>
 #include <assert.h>
-#include "x360emu.h"
 #include "log.h"
 #include "connection.h"
 
@@ -15,6 +14,11 @@ static struct sockaddr_in client_addr;
 static int client_addr_length = sizeof client_addr;
 static SOCKET cmd_sock;
 static HANDLE cmd_thread_handle;
+
+
+static void* packet_handlers[1] = {
+	[CMD_PACKET_TYPE_INPUT] = NULL
+};
 
 
 static bool sock_wait_for_data(SOCKET sock) 
@@ -89,7 +93,7 @@ static bool recv_packet(SOCKET sock, void* data, int size)
 
 
 
-static bool host_init_socks(void)
+static bool init_sockets(void)
 {
     cmd_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (cmd_sock <= 0) {
@@ -110,7 +114,7 @@ static bool host_init_socks(void)
 	return true;
 }
 
-static bool host_fill_ip_and_port(void)
+static bool fill_local_host_and_port(void)
 {
 	struct sockaddr_in address;
 	int namelen = sizeof address;
@@ -136,37 +140,6 @@ static bool host_fill_ip_and_port(void)
 	return true;
 }
 
-
-static void input_packet_reorder(struct input_packet* p)
-{
-	uint32_t btns = p->gamepad.btns;
-	const int16_t rsx = p->gamepad.rsx;
-	const int16_t rsy = p->gamepad.rsy;
-	const int16_t lsx = p->gamepad.lsx;
-	const int16_t lsy = p->gamepad.lsy;
-
-	p->gamepad.btns = BSWAP_32(btns);
-
-	p->gamepad.rsx = BSWAP_16(rsx);
-
-	p->gamepad.rsy = BSWAP_16(rsy);
-
-	p->gamepad.lsx = BSWAP_16(lsx);
-
-	p->gamepad.lsy = BSWAP_16(lsy);
-
-	btns = p->wiimotes[0].btns;
-
-	p->wiimotes[0].btns = BSWAP_32(btns);
-}
-
-static void input_packet_handler(struct input_packet* p)
-{
-	input_packet_reorder(p);
-	x360emu_update(p);
-}
-
-
 static DWORD WINAPI cmd_packet_thread_main(LPVOID param)
 {
 	((void)param);
@@ -177,18 +150,25 @@ static DWORD WINAPI cmd_packet_thread_main(LPVOID param)
 	int framecnt = 0;
 
 	struct cmd_packet cmd_packet;
-
+	struct cmd_packet response;
 
 	for (;;) {
 		lasttick = GetTickCount();
 
-		while (!recv_packet(cmd_sock, &cmd_packet, sizeof cmd_packet)) {
-			log_debug("failed to recv cmd packet");
-		}
+		if (recv_packet(cmd_sock, &cmd_packet, sizeof cmd_packet)) {
+			
+			switch (cmd_packet.type) {
+			
+			case CMD_PACKET_TYPE_INPUT:
+				input_packet_reorder(&cmd_packet.input);
+				response.type = CMD_PACKET_TYPE_INPUT_FEEDBACK;
+				input_packet_handler_fn_t handler = packet_handlers[CMD_PACKET_TYPE_INPUT];
+				handler(&cmd_packet.input, &response.input_feedback);
+				break;
+			
+			}
 
-		if (cmd_packet.type == CMD_PACKET_TYPE_INPUT) {
-			input_packet_reorder(&cmd_packet.input);
-			x360emu_update(&cmd_packet.input);
+			send_packet(cmd_sock, &response, sizeof response);
 		}
 
 		tickacc += GetTickCount() - lasttick;
@@ -204,7 +184,9 @@ static DWORD WINAPI cmd_packet_thread_main(LPVOID param)
 }
 
 
-bool connection_init(void)
+bool connection_init(
+	input_packet_handler_fn_t input_packet_handler
+)
 {
     WSADATA wsa_data;
     if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
@@ -214,10 +196,10 @@ bool connection_init(void)
 
     memset(&client_addr, 0, sizeof client_addr);
 
-    if (!host_init_socks())
+    if (!init_sockets())
     	return false;
 
-	if (!host_fill_ip_and_port()) 
+	if (!fill_local_host_and_port()) 
 		return false;
 
 
@@ -238,19 +220,20 @@ bool connection_init(void)
 		(int)local_network_port
 	);
 
+
+	packet_handlers[CMD_PACKET_TYPE_INPUT] = input_packet_handler;
+
 	return true;
 }
 
 void connection_term(void)
 {
-	if (!TerminateThread(cmd_thread_handle, 0)) {
+	if (!TerminateThread(cmd_thread_handle, 0))
 		log_info("failed to terminate thread: %d", GetLastError());
-	}
 
 	closesocket(cmd_sock);
 	WSACleanup();
 }
-
 
 void connection_get_address(char** ip, short* port)
 {

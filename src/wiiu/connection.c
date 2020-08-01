@@ -1,6 +1,7 @@
 
 #include <coreinit/memdefaultheap.h>
 #include <coreinit/time.h>
+#include <coreinit/thread.h>
 #include <nsysnet/socket.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -26,17 +27,11 @@ static bool sock_wait_for_data(int sock)
 	fd_set readfd;
 
 	struct timeval timer = {.tv_sec = 0, .tv_usec = 0};
-	const unsigned long long ticks_to_wait = OSMillisecondsToTicks(60);
-	const unsigned long long ticks = OSGetSystemTick();
 
 	FD_ZERO(&readfd);
 	FD_SET(sock, &readfd);
 
-	do {
-		retval = select(sock + 1, &readfd, NULL, NULL, &timer);
-		if (retval != 0)
-			break;
-	} while ((OSGetSystemTick() - ticks) < ticks_to_wait);
+	retval = select(sock + 1, &readfd, NULL, NULL, &timer);
 
 	return retval > 0;
 }
@@ -79,33 +74,48 @@ static bool recv_packet(int sock, void* data, int size)
 	return true;
 }
 
+
+static input_packet_handler_fn_t input_packet_handler;
+
 static int cmd_packet_thread_main(int argc, const char** argv)
 {
-	struct cmd_packet cmd;
-	memset(&cmd, 0, sizeof cmd);
+	struct cmd_packet cmd_out, cmd_in;
+	memset(&cmd_out, 0, sizeof cmd_out);
+	memset(&cmd_in, 0, sizeof cmd_in);
 
-	cmd.type = CMD_PACKET_TYPE_INPUT;
+	cmd_out.type = CMD_PACKET_TYPE_INPUT;
 
 	for (;;) {
-		inputman_update(&cmd.input);
+		input_packet_handler(&cmd_in.input_feedback, &cmd_out.input);
 
-		if (cmd.input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
+		if (cmd_out.input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
 			goto Lexit;
 
-		if (!send_packet(cmd_sock, &cmd, sizeof cmd))
-			log_debug("send cmd packet failed");
+		if (!send_packet(cmd_sock, &cmd_out, sizeof cmd_out))
+			log_debug("failed to send packet");
+
+		if (!recv_packet(cmd_sock, &cmd_in, sizeof cmd_in))
+			log_debug("failed to recv packet");
+
+		if (cmd_in.type == CMD_PACKET_TYPE_INPUT_FEEDBACK) {
+			log_debug("received feedback: %.2X", (unsigned)cmd_in.input_feedback.placeholder);
+		}
+
+		memset(&cmd_in, 0, sizeof cmd_in);
 	}
+
 Lexit:
 	return EXIT_SUCCESS;
 }
 
 
-bool connection_init(void)
+bool connection_init(input_packet_handler_fn_t input_handler)
 {
 	cmd_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (cmd_sock < 0)
 		return false;
 
+	input_packet_handler = input_handler;
 	return true;
 }
 

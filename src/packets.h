@@ -103,17 +103,63 @@ struct input_packet {
    struct wiimote wiimotes[4];
 };
 
+struct input_feedback_packet {
+   uint8_t placeholder;
+};
 
 enum CMD_PACKET_TYPE {
-   CMD_PACKET_TYPE_INPUT = 0x01
+   /* HOST INCOMING PACKET TYPES */
+   CMD_PACKET_TYPE_INPUT,
+
+
+   /* CLIENT INCOMING PACKET TYPES */
+   CMD_PACKET_TYPE_INPUT_FEEDBACK
 };
 
 struct cmd_packet {
    uint8_t type;
    union {
       struct input_packet input;
+      struct input_feedback_packet input_feedback;
    };
 };
+
+
+static inline void input_packet_reorder(struct input_packet* p)
+{
+   if (p->flags&INPUT_PACKET_FLAG_GAMEPAD) {
+      const uint32_t btns = p->gamepad.btns;
+      const int16_t rsx = p->gamepad.rsx;
+      const int16_t rsy = p->gamepad.rsy;
+      const int16_t lsx = p->gamepad.lsx;
+      const int16_t lsy = p->gamepad.lsy;
+
+      p->gamepad.btns = BSWAP_32(btns);
+
+      p->gamepad.rsx = BSWAP_16(rsx);
+
+      p->gamepad.rsy = BSWAP_16(rsy);
+
+      p->gamepad.lsx = BSWAP_16(lsx);
+
+      p->gamepad.lsy = BSWAP_16(lsy);
+   }
+
+   const uint8_t wiimote_flags[] = {
+      INPUT_PACKET_FLAG_WIIMOTE_0,
+      INPUT_PACKET_FLAG_WIIMOTE_1,
+      INPUT_PACKET_FLAG_WIIMOTE_2,
+      INPUT_PACKET_FLAG_WIIMOTE_3
+   };
+
+
+   for (int i = 0; i < 4; ++i) {
+      if (p->flags&wiimote_flags[i]) {
+         const uint32_t btns = p->wiimotes[i].btns;
+         p->wiimotes[i].btns = BSWAP_32(btns); 
+      }
+   }
+}
 
 
 

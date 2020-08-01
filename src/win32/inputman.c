@@ -1,6 +1,6 @@
 #include <windows.h>
 #include <ViGEm/Client.h>
-#include "x360emu.h"
+#include "inputman.h"
 #include "log.h"
 
 
@@ -30,12 +30,18 @@ static VOID CALLBACK x360_notification(
 	((void)small_motor);
 	((void)led_number);
 	((void)udata);
-	log_info("X360 NOTIFICATION CALLED");
+	log_info(
+		"X360 NOTIFICATION CALLED: \n"
+		"%.2X large_motor\n"
+		"%.2X small_motor\n",
+		(unsigned)large_motor,
+		(unsigned)small_motor
+	);
 }
 
 
 
-bool x360emu_init(void)
+bool inputman_init(void)
 {
 	x360_pad.client = vigem_alloc();
 	VIGEM_ERROR err = vigem_connect(x360_pad.client);
@@ -71,7 +77,7 @@ bool x360emu_init(void)
 }
 
 
-void x360emu_term(void)
+void inputman_term(void)
 {
 	vigem_target_x360_unregister_notification(x360_pad.target);
 	vigem_target_remove(x360_pad.client, x360_pad.target);
@@ -79,12 +85,17 @@ void x360emu_term(void)
 	vigem_free(x360_pad.client);
 }
 
-void x360emu_update(struct input_packet* pack)
+void inputman_update(
+	const struct input_packet* input,
+	struct input_feedback_packet* feedback
+)
 {
-	if (memcmp(&input_state, pack, sizeof input_state) == 0)
+	if (memcmp(&input_state, input, sizeof input_state) == 0)
 		return;
 
-	memcpy(&input_state, pack, sizeof input_state);
+	memcpy(&input_state, input, sizeof input_state);
+
+	feedback->placeholder = 0xFF;
 
 	log_debug(
 		"GAMEPAD BTNS: %.8X\n"

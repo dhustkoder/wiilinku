@@ -4,13 +4,18 @@
 #include <stdio.h>
 #include "gui.h"
 #include "connection.h"
-#include "x360emu.h"
+#include "inputman.h"
 
 #define LOG_IMPLEMENTATION
 #define LOG_IMMEDIATE_MODE
 #include "log.h"
 
 static HANDLE stdout_handle;
+
+
+
+
+
 
 
 static void log_buffer_flusher(const char* log_buffer, int size)
@@ -28,10 +33,10 @@ static bool init_platform(void)
 	if (!log_init(log_buffer_flusher))
 		return false;
 
-	if (!connection_init())
+	if (!inputman_init())
 		return false;
 
-	if (!x360emu_init())
+	if (!connection_init(inputman_update))
 		return false;
 
 	if (!gui_init())
@@ -42,9 +47,9 @@ static bool init_platform(void)
 
 static void terminate_platform(void)
 {
-	x360emu_term();
 	gui_term();
 	connection_term();
+	inputman_term();
 	log_term();
 	FreeConsole();
 }
