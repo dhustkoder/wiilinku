@@ -4,7 +4,7 @@
 #include <coreinit/thread.h>
 #include <stdlib.h>
 #include "connection.h"
-#include "inputman.h"
+#include "input.h"
 #include "video.h"
 
 
@@ -39,7 +39,7 @@ static bool platform_init(void)
 {
 	WHBProcInit();
 	WHBInitializeSocketLibrary();
-	inputman_init();
+	input_init();
 
 	if (!log_init(log_buffer_flusher))
 		return false;
@@ -47,7 +47,7 @@ static bool platform_init(void)
 	if (!video_init())
 		return false;
 
-	if (!connection_init(inputman_update))
+	if (!connection_init())
 		return false;
 
 	return true;
@@ -63,7 +63,7 @@ static void platform_term(void)
 
 	log_term();
 
-	inputman_term();
+	input_term();
 
 	WHBDeinitializeSocketLibrary();
 
@@ -74,16 +74,11 @@ static void platform_term(void)
 static int gui_main_thread(void)
 {
 
-	if (!connection_connect("192.168.15.7", 7173))
-		return EXIT_FAILURE;
-
-	log_debug("connected");
-
 	struct input_packet input;
 	memset(&input, 0, sizeof input);
 
 	for (;;) {
-		inputman_fetch(&input);
+		input_fetch(&input);
 
 		if (input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
 			break;

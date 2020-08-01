@@ -107,23 +107,6 @@ struct input_feedback_packet {
    uint8_t placeholder;
 };
 
-enum CMD_PACKET_TYPE {
-   /* HOST INCOMING PACKET TYPES */
-   CMD_PACKET_TYPE_INPUT,
-
-
-   /* CLIENT INCOMING PACKET TYPES */
-   CMD_PACKET_TYPE_INPUT_FEEDBACK
-};
-
-struct cmd_packet {
-   uint8_t type;
-   union {
-      struct input_packet input;
-      struct input_feedback_packet input_feedback;
-   };
-};
-
 
 static inline void input_packet_reorder(struct input_packet* p)
 {

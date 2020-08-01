@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "gui.h"
 #include "connection.h"
-#include "inputman.h"
+#include "input.h"
 
 #define LOG_IMPLEMENTATION
 #define LOG_IMMEDIATE_MODE
@@ -33,10 +33,10 @@ static bool init_platform(void)
 	if (!log_init(log_buffer_flusher))
 		return false;
 
-	if (!inputman_init())
+	if (!connection_init())
 		return false;
 
-	if (!connection_init(inputman_update))
+	if (!input_init())
 		return false;
 
 	if (!gui_init())
@@ -49,11 +49,10 @@ static void terminate_platform(void)
 {
 	gui_term();
 	connection_term();
-	inputman_term();
+	input_term();
 	log_term();
 	FreeConsole();
 }
-
 
 
 int gui_main_thread(void)

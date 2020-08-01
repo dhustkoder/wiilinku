@@ -12,13 +12,12 @@ static struct in_addr local_network_ip;
 static unsigned short local_network_port;
 static struct sockaddr_in client_addr;
 static int client_addr_length = sizeof client_addr;
-static SOCKET cmd_sock;
-static HANDLE cmd_thread_handle;
 
 
-static void* packet_handlers[1] = {
-	[CMD_PACKET_TYPE_INPUT] = NULL
-};
+static SOCKET input_socket;
+static SOCKET input_feedback_socket;
+
+
 
 
 static bool sock_wait_for_data(SOCKET sock) 
@@ -43,14 +42,11 @@ static bool send_packet(SOCKET sock, const void* data, int size)
 	while (size > 0) {
 		const int block_size = size > MAX_PACKET_BLOCK_SIZE ? MAX_PACKET_BLOCK_SIZE : size;
 
-		int ret = sendto(
+		int ret = send(
 			sock,
 			data,
 			block_size, 
-			0,
-			(struct sockaddr *) &client_addr,
-			sizeof client_addr
-		);
+			0);
 
 		if (ret < block_size)
 			return false;
@@ -71,14 +67,11 @@ static bool recv_packet(SOCKET sock, void* data, int size)
 	while (size > 0) {
 		const int block_size = size > MAX_PACKET_BLOCK_SIZE ? MAX_PACKET_BLOCK_SIZE : size;
 
-		int ret = recvfrom(
+		int ret = recv(
 			sock,
 			data,
 			block_size,
-			0,
-			(struct sockaddr *) &client_addr,
-			&client_addr_length
-		);
+			0);
 
 		if (ret < block_size)
 			return false;
@@ -91,12 +84,10 @@ static bool recv_packet(SOCKET sock, void* data, int size)
 }
 
 
-
-
-static bool init_sockets(void)
+static bool init_recv_socket(SOCKET* sock, short port)
 {
-    cmd_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (cmd_sock <= 0) {
+    *sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (*sock <= 0) {
     	log_info("failed to start socket");
     	return false;
     }
@@ -104,9 +95,9 @@ static bool init_sockets(void)
 	struct sockaddr_in address;
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port = htons(7173);
+	address.sin_port = htons(port);
 
-	if (bind(cmd_sock, (const struct sockaddr*)&address, sizeof address) != 0) {
+	if (bind(*sock, (const struct sockaddr*)&address, sizeof address) != 0) {
 		log_info("failed to bind socket");
 		return false;
 	}
@@ -114,11 +105,32 @@ static bool init_sockets(void)
 	return true;
 }
 
+ bool init_send_socket(SOCKET* sock, const char* ip, short port)
+{
+	*sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (*sock < 0)
+		return false;
+
+	struct sockaddr_in host;
+	memset(&host, 0, sizeof(host));
+	host.sin_family = AF_INET;
+	host.sin_port = htons(port);
+	host.sin_addr.s_addr = inet_addr(ip);
+
+	if (connect(*sock, (struct sockaddr*)&host, sizeof(host)) < 0) {
+		log_debug("socket connect failed");
+		return false;
+	}	
+	
+	return true;
+}
+
+
 static bool fill_local_host_and_port(void)
 {
 	struct sockaddr_in address;
 	int namelen = sizeof address;
-	while (getsockname(cmd_sock, (struct sockaddr*)&address, &namelen) != 0) {
+	while (getsockname(input_socket, (struct sockaddr*)&address, &namelen) != 0) {
 		log_info("failed to getsockname: %d", WSAGetLastError());
 		return false;
 	}
@@ -140,53 +152,10 @@ static bool fill_local_host_and_port(void)
 	return true;
 }
 
-static DWORD WINAPI cmd_packet_thread_main(LPVOID param)
-{
-	((void)param);
-
-	DWORD avg_frame_ms;
-	DWORD lasttick;
-	DWORD tickacc = 0;
-	int framecnt = 0;
-
-	struct cmd_packet cmd_packet;
-	struct cmd_packet response;
-
-	for (;;) {
-		lasttick = GetTickCount();
-
-		if (recv_packet(cmd_sock, &cmd_packet, sizeof cmd_packet)) {
-			
-			switch (cmd_packet.type) {
-			
-			case CMD_PACKET_TYPE_INPUT:
-				input_packet_reorder(&cmd_packet.input);
-				response.type = CMD_PACKET_TYPE_INPUT_FEEDBACK;
-				input_packet_handler_fn_t handler = packet_handlers[CMD_PACKET_TYPE_INPUT];
-				handler(&cmd_packet.input, &response.input_feedback);
-				break;
-			
-			}
-
-			send_packet(cmd_sock, &response, sizeof response);
-		}
-
-		tickacc += GetTickCount() - lasttick;
-		if (++framecnt >= 60) {
-			avg_frame_ms = tickacc / framecnt;
-			tickacc = 0;
-			framecnt = 0;
-			log_debug("CMD PACKET AVERAGE FRAME TIME: %ld ms", avg_frame_ms);
-		}
-	}
-
-	return EXIT_SUCCESS;
-}
 
 
-bool connection_init(
-	input_packet_handler_fn_t input_packet_handler
-)
+
+bool connection_init(void)
 {
     WSADATA wsa_data;
     if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
@@ -196,22 +165,14 @@ bool connection_init(
 
     memset(&client_addr, 0, sizeof client_addr);
 
-    if (!init_sockets())
-    	return false;
+	if (!init_recv_socket(&input_socket, 7173))
+		return false;
+
+	if (!init_send_socket(&input_feedback_socket, "192.168.15.4", 7174))
+		return false;
 
 	if (!fill_local_host_and_port()) 
 		return false;
-
-
-	DWORD thread_id;
-	cmd_thread_handle = CreateThread(
-		NULL,
-		0,
-		cmd_packet_thread_main,
-		NULL,
-		0,
-		&thread_id
-	);
 
 	log_info(
 		"host %s listening on: %s:%d",
@@ -220,18 +181,13 @@ bool connection_init(
 		(int)local_network_port
 	);
 
-
-	packet_handlers[CMD_PACKET_TYPE_INPUT] = input_packet_handler;
-
 	return true;
 }
 
 void connection_term(void)
 {
-	if (!TerminateThread(cmd_thread_handle, 0))
-		log_info("failed to terminate thread: %d", GetLastError());
-
-	closesocket(cmd_sock);
+	closesocket(input_socket);
+	closesocket(input_feedback_socket);
 	WSACleanup();
 }
 
@@ -241,3 +197,17 @@ void connection_get_address(char** ip, short* port)
 	*port = local_network_port;
 }
 
+bool connection_receive_input_packet(struct input_packet* input)
+{
+	if (recv_packet(input_socket, input, sizeof *input)) {
+		input_packet_reorder(input);
+		return true;
+	}
+
+	return false;
+}
+
+void connection_send_input_feedback_packet(const struct input_feedback_packet* feedback)
+{
+	send_packet(input_feedback_socket, feedback, sizeof *feedback);
+}

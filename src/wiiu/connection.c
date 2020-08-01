@@ -1,7 +1,6 @@
 
 #include <coreinit/memdefaultheap.h>
 #include <coreinit/time.h>
-#include <coreinit/thread.h>
 #include <nsysnet/socket.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -11,30 +10,33 @@
 #include <unistd.h>
 #include <assert.h>
 #include "log.h"
-#include "inputman.h"
+#include "input.h"
 #include "connection.h"
 
 
 #define MAX_PACKET_BLOCK_SIZE (1400)
 
 
-static int cmd_sock = 0;
+static int input_socket = 0;
+static int input_feedback_socket = 0;
 
 
 static bool sock_wait_for_data(int sock) 
 {
-	int retval;
 	fd_set readfd;
-
-	struct timeval timer = {.tv_sec = 0, .tv_usec = 0};
 
 	FD_ZERO(&readfd);
 	FD_SET(sock, &readfd);
+	struct timeval timer = {
+		.tv_sec = 0,
+		.tv_usec = 0
+	};
 
-	retval = select(sock + 1, &readfd, NULL, NULL, &timer);
+	int retval = select(sock + 1, &readfd, NULL, NULL, &timer);
 
 	return retval > 0;
 }
+
 
 
 static bool send_packet(int sock, const void* data, int size)
@@ -74,73 +76,74 @@ static bool recv_packet(int sock, void* data, int size)
 	return true;
 }
 
-
-static input_packet_handler_fn_t input_packet_handler;
-
-static int cmd_packet_thread_main(int argc, const char** argv)
+static bool init_recv_socket(int* sock, short port)
 {
-	struct cmd_packet cmd_out, cmd_in;
-	memset(&cmd_out, 0, sizeof cmd_out);
-	memset(&cmd_in, 0, sizeof cmd_in);
+    *sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (*sock <= 0) {
+    	log_info("failed to start socket");
+    	return false;
+    }
 
-	cmd_out.type = CMD_PACKET_TYPE_INPUT;
+	struct sockaddr_in address;
+	address.sin_family = AF_INET;
+	address.sin_addr.s_addr = INADDR_ANY;
+	address.sin_port = htons(port);
 
-	for (;;) {
-		input_packet_handler(&cmd_in.input_feedback, &cmd_out.input);
-
-		if (cmd_out.input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
-			goto Lexit;
-
-		if (!send_packet(cmd_sock, &cmd_out, sizeof cmd_out))
-			log_debug("failed to send packet");
-
-		if (!recv_packet(cmd_sock, &cmd_in, sizeof cmd_in))
-			log_debug("failed to recv packet");
-
-		if (cmd_in.type == CMD_PACKET_TYPE_INPUT_FEEDBACK) {
-			log_debug("received feedback: %.2X", (unsigned)cmd_in.input_feedback.placeholder);
-		}
-
-		memset(&cmd_in, 0, sizeof cmd_in);
+	if (bind(*sock, (const struct sockaddr*)&address, sizeof address) != 0) {
+		log_info("failed to bind socket");
+		return false;
 	}
 
-Lexit:
-	return EXIT_SUCCESS;
+	return true;
 }
 
-
-bool connection_init(input_packet_handler_fn_t input_handler)
+static bool init_send_socket(int* sock, const char* ip, short port)
 {
-	cmd_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (cmd_sock < 0)
+	*sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (*sock < 0)
 		return false;
 
-	input_packet_handler = input_handler;
+	struct sockaddr_in host;
+	memset(&host, 0, sizeof(host));
+	host.sin_family = AF_INET;
+	host.sin_port = htons(port);
+	inet_aton(ip, &host.sin_addr);
+
+	if (connect(*sock, (struct sockaddr*)&host, sizeof(host)) < 0) {
+		log_debug("socket connect failed");
+		return false;
+	}	
+	
+	return true;
+}
+
+bool connection_init(void)
+{
+	if (!init_send_socket(&input_socket, "192.168.15.7", 7173))
+		return false;
+	if (!init_recv_socket(&input_feedback_socket, 7174))
+		return false;
+
 	return true;
 }
 
 void connection_term(void)
 {
-	socketclose(cmd_sock);
+	socketclose(input_socket);
+	socketclose(input_feedback_socket);
 }
 
-
-bool connection_connect(const char* ip, short port)
+void connection_send_input_packet(const struct input_packet* input)
 {
-	struct sockaddr_in host;
-	memset(&host, 0, sizeof(host));
-	host.sin_family = AF_INET;
-	host.sin_port = port;
-	inet_aton(ip, &host.sin_addr);
+	send_packet(input_socket, input, sizeof *input);
+}
 
-	if (connect(cmd_sock, (struct sockaddr*)&host, sizeof(host)) < 0) {
-		log_debug("socket connect failed");
-		return false;
+bool connection_receive_input_feedback_packet(struct input_feedback_packet* feedback)
+{
+	if (recv_packet(input_feedback_socket, feedback, sizeof *feedback)) {
+		return true;
 	}
 
-	OSRunThread(OSGetDefaultThread(0), cmd_packet_thread_main, 0, NULL);
-	
-	return true;
+	return false;
 }
-
 
