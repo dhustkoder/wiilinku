@@ -1,7 +1,7 @@
-
 #include <coreinit/memdefaultheap.h>
 #include <coreinit/time.h>
 #include <nsysnet/socket.h>
+#include <nn/ac/ac_c.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -16,9 +16,10 @@
 
 #define MAX_PACKET_BLOCK_SIZE (1400)
 
-
-static int input_socket = 0;
-static int input_feedback_socket = 0;
+static int ping_pong_socket = -1;
+static int input_socket = -1;
+static int input_feedback_socket = -1;
+static bool connected = false;
 
 
 static bool sock_wait_for_data(int sock) 
@@ -76,40 +77,61 @@ static bool recv_packet(int sock, void* data, int size)
 	return true;
 }
 
-static bool init_recv_socket(int* sock, short port)
+
+static bool setup_socket(
+	int* sock,
+	int proto,
+	struct sockaddr_in* addr,
+	const char* ip,
+	unsigned short port
+)
 {
-    *sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (*sock <= 0) {
+	if (*sock > -1)
+		socketclose(*sock);
+
+    *sock = socket(
+    	AF_INET, 
+    	proto == IPPROTO_UDP ? SOCK_DGRAM : SOCK_STREAM,
+    	proto
+    );
+
+    if (*sock < 0) {
     	log_info("failed to start socket");
     	return false;
     }
 
-	struct sockaddr_in address;
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port = htons(port);
+    memset(addr, 0, sizeof *addr);
+	addr->sin_family = AF_INET;
+	addr->sin_port = htons(port);
+	if (ip == NULL) {
+		addr->sin_addr.s_addr = INADDR_ANY;
+	} else {
+		inet_aton(ip, &addr->sin_addr);
+	}
 
-	if (bind(*sock, (const struct sockaddr*)&address, sizeof address) != 0) {
-		log_info("failed to bind socket");
+	return true;
+}
+
+
+static bool setup_recv_socket(int* sock, int proto, unsigned short port)
+{
+	struct sockaddr_in addr;
+	setup_socket(sock, proto, &addr, NULL, port);
+
+	if (bind(*sock, (const struct sockaddr*)&addr, sizeof addr) != 0) {
+		log_debug("failed to bind socket");
 		return false;
 	}
 
 	return true;
 }
 
-static bool init_send_socket(int* sock, const char* ip, short port)
+static bool setup_send_socket(int* sock, int proto, const char* ip, unsigned short port)
 {
-	*sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (*sock < 0)
-		return false;
+	struct sockaddr_in addr;
+	setup_socket(sock, proto, &addr, ip, port);
 
-	struct sockaddr_in host;
-	memset(&host, 0, sizeof(host));
-	host.sin_family = AF_INET;
-	host.sin_port = htons(port);
-	inet_aton(ip, &host.sin_addr);
-
-	if (connect(*sock, (struct sockaddr*)&host, sizeof(host)) < 0) {
+	if (connect(*sock, (struct sockaddr*)&addr, sizeof addr) != 0) {
 		log_debug("socket connect failed");
 		return false;
 	}	
@@ -117,33 +139,64 @@ static bool init_send_socket(int* sock, const char* ip, short port)
 	return true;
 }
 
+
 bool connection_init(void)
 {
-	if (!init_send_socket(&input_socket, "192.168.15.7", 7173))
-		return false;
-	if (!init_recv_socket(&input_feedback_socket, 7174))
-		return false;
-
+	socket_lib_init();
 	return true;
 }
 
 void connection_term(void)
 {
-	socketclose(input_socket);
+	connected = false;
+
 	socketclose(input_feedback_socket);
+	socketclose(input_socket);
+	socketclose(ping_pong_socket);
+	socket_lib_finish();
+
+	ping_pong_socket = -1;
+	input_socket = -1;
+	input_feedback_socket = -1;
+
+}
+
+bool connection_connect(const char* host_ip)
+{
+	if (!setup_send_socket(&ping_pong_socket, IPPROTO_TCP, host_ip, PING_PONG_PACKET_PORT))
+		return false;
+
+	if (!setup_send_socket(&input_socket, IPPROTO_UDP, host_ip, INPUT_PACKET_PORT))
+		return false;
+
+	if (!setup_recv_socket(&input_feedback_socket, IPPROTO_UDP, INPUT_FEEDBACK_PACKET_PORT))
+		return false;
+
+	connected = true;
+	return true;
+}
+
+bool connection_is_connected(void)
+{
+	return connected;
 }
 
 void connection_send_input_packet(const struct input_packet* input)
 {
-	send_packet(input_socket, input, sizeof *input);
+	if (connected)
+		send_packet(input_socket, input, sizeof *input);
 }
 
 bool connection_receive_input_feedback_packet(struct input_feedback_packet* feedback)
 {
+	if (!connected)
+		return false;
+
 	if (recv_packet(input_feedback_socket, feedback, sizeof *feedback)) {
 		return true;
 	}
 
 	return false;
 }
+
 

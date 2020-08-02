@@ -9,14 +9,15 @@
 
 static char hostname[80];
 static struct in_addr local_network_ip;
-static unsigned short local_network_port;
 static struct sockaddr_in client_addr;
 static int client_addr_length = sizeof client_addr;
 
 
+static SOCKET ping_pong_socket;
+static SOCKET ping_pong_client_socket;
 static SOCKET input_socket;
 static SOCKET input_feedback_socket;
-
+static bool connected = false;
 
 
 
@@ -83,39 +84,82 @@ static bool recv_packet(SOCKET sock, void* data, int size)
 	return true;
 }
 
-
-static bool init_recv_socket(SOCKET* sock, short port)
+static bool setup_socket(
+	SOCKET* sock,
+	int proto,
+	struct sockaddr_in* addr,
+	const char* ip,
+	unsigned short port
+)
 {
-    *sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (*sock <= 0) {
+	if (*sock > -1)
+		closesocket(*sock);
+
+    *sock = socket(
+    	AF_INET, 
+    	proto == IPPROTO_UDP ? SOCK_DGRAM : SOCK_STREAM,
+    	proto
+    );
+
+    if (*sock < 0) {
     	log_info("failed to start socket");
     	return false;
     }
 
+    memset(addr, 0, sizeof *addr);
+	addr->sin_family = AF_INET;
+	addr->sin_port = htons(port);
+	if (ip == NULL) {
+		addr->sin_addr.s_addr = INADDR_ANY;
+	} else {
+		addr->sin_addr.s_addr = inet_addr(ip);
+	}
+
+	return true;
+}
+
+static bool init_recv_socket(
+	SOCKET* sock,
+	int proto,
+	SOCKET* client_sock,
+	struct sockaddr_in* client_addr,
+	short port
+)
+{
 	struct sockaddr_in address;
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port = htons(port);
+	setup_socket(sock, proto, &address, NULL, port);
 
 	if (bind(*sock, (const struct sockaddr*)&address, sizeof address) != 0) {
 		log_info("failed to bind socket");
 		return false;
 	}
 
+	if (proto == IPPROTO_TCP) {
+		if (listen(*sock, 1) != 0) {
+			log_error("Couldnt listen server socket");
+			return false;
+		}
+
+		log_info(
+			"host %s listening on: %s:%d",
+			hostname,
+			inet_ntoa(local_network_ip),
+			PING_PONG_PACKET_PORT
+		);
+
+		int addrlen = sizeof *client_addr;
+		memset(client_addr, 0, addrlen);
+		*client_sock = accept(*sock, (struct sockaddr*)client_addr, &addrlen);
+		log_info("connected to: %s", connection_get_client_address());
+	}
+
 	return true;
 }
 
- bool init_send_socket(SOCKET* sock, const char* ip, short port)
+ bool init_send_socket(SOCKET* sock, int proto, const char* ip, short port)
 {
-	*sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (*sock < 0)
-		return false;
-
 	struct sockaddr_in host;
-	memset(&host, 0, sizeof(host));
-	host.sin_family = AF_INET;
-	host.sin_port = htons(port);
-	host.sin_addr.s_addr = inet_addr(ip);
+ 	setup_socket(sock, proto, &host, ip, port);
 
 	if (connect(*sock, (struct sockaddr*)&host, sizeof(host)) < 0) {
 		log_debug("socket connect failed");
@@ -126,15 +170,9 @@ static bool init_recv_socket(SOCKET* sock, short port)
 }
 
 
+
 static bool fill_local_host_and_port(void)
 {
-	struct sockaddr_in address;
-	int namelen = sizeof address;
-	while (getsockname(input_socket, (struct sockaddr*)&address, &namelen) != 0) {
-		log_info("failed to getsockname: %d", WSAGetLastError());
-		return false;
-	}
-
 	if (gethostname(hostname, sizeof(hostname)) != 0) {
 		log_info("failed to gethostname: %d", WSAGetLastError());
 		return false;
@@ -147,12 +185,38 @@ static bool fill_local_host_and_port(void)
 	}
 
 	memcpy(&local_network_ip, phe->h_addr_list[0], sizeof(struct in_addr));
-	local_network_port = ntohs(address.sin_port);
 
 	return true;
 }
 
+static DWORD WINAPI connection_wait_thread_main(LPVOID p)
+{
+    if (!init_recv_socket(
+    		&ping_pong_socket,
+    	    IPPROTO_TCP,
+    	    &ping_pong_client_socket,
+    	    &client_addr,
+    	    PING_PONG_PACKET_PORT)
+    	) {
+    	return false;
+	}
 
+	if (!init_recv_socket(&input_socket, IPPROTO_UDP, NULL, NULL, INPUT_PACKET_PORT))
+		return false;
+
+	if (!init_send_socket(
+			&input_feedback_socket,
+			IPPROTO_UDP,
+			inet_ntoa(client_addr.sin_addr),
+			INPUT_FEEDBACK_PACKET_PORT)
+		) {
+		return false;
+	}
+
+	connected = true;
+
+	return true;
+}
 
 
 bool connection_init(void)
@@ -163,23 +227,11 @@ bool connection_init(void)
         return false;
     }
 
-    memset(&client_addr, 0, sizeof client_addr);
-
-	if (!init_recv_socket(&input_socket, 7173))
-		return false;
-
-	if (!init_send_socket(&input_feedback_socket, "192.168.15.4", 7174))
-		return false;
-
 	if (!fill_local_host_and_port()) 
 		return false;
 
-	log_info(
-		"host %s listening on: %s:%d",
-		hostname,
-		inet_ntoa(local_network_ip),
-		(int)local_network_port
-	);
+	if (!connection_wait_thread_main(NULL))
+		return false;
 
 	return true;
 }
@@ -188,13 +240,24 @@ void connection_term(void)
 {
 	closesocket(input_socket);
 	closesocket(input_feedback_socket);
+	closesocket(ping_pong_socket);
+	closesocket(ping_pong_client_socket);
 	WSACleanup();
 }
 
-void connection_get_address(char** ip, short* port)
+const char* connection_get_host_address(void)
 {
-	*ip = inet_ntoa(local_network_ip);
-	*port = local_network_port;
+	return inet_ntoa(local_network_ip);
+}
+
+const char* connection_get_client_address(void)
+{
+	return inet_ntoa(client_addr.sin_addr);
+}
+
+bool connection_is_connected(void)
+{
+	return connected;
 }
 
 bool connection_receive_input_packet(struct input_packet* input)

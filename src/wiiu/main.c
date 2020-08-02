@@ -38,7 +38,6 @@ static void log_buffer_flusher(const char* buf, int len)
 static bool platform_init(void)
 {
 	WHBProcInit();
-	WHBInitializeSocketLibrary();
 	input_init();
 
 	if (!log_init(log_buffer_flusher))
@@ -56,9 +55,8 @@ static bool platform_init(void)
 
 static void platform_term(void)
 {
-
 	connection_term();
-
+	
 	video_term();
 
 	log_term();
@@ -73,7 +71,6 @@ static void platform_term(void)
 
 static int gui_main_thread(void)
 {
-
 	struct input_packet input;
 	memset(&input, 0, sizeof input);
 
@@ -82,6 +79,13 @@ static int gui_main_thread(void)
 
 		if (input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
 			break;
+
+
+		if (!connection_is_connected()) {
+			if (!connection_connect("192.168.15.7")) {
+				log_debug("failed to connect");
+			}
+		}
 
 		sprintf(
 			input_log,
@@ -108,6 +112,12 @@ int main(void)
 		return EXIT_FAILURE;
 	
 	int ret = gui_main_thread();
+
+	video_render_clear();
+	log_flush();
+	video_render_flip();
+
+	OSSleepTicks(OSMillisecondsToTicks(1000 * 5));
 
 	platform_term();
 

@@ -16,7 +16,8 @@
 #define CHARSET_W (112)
 #define CHARSET_H (21)
 #define CHARS_PER_LINE (CHARSET_W / CHAR_W)
-#define MAX_BUFFER_OBJECTS (512)
+#define MAX_BUFFER_OBJECTS  (16)
+#define MAX_DYNAMIC_OBJECTS (16)
 
 
 static const uint8_t hborder_data[] = (
@@ -338,6 +339,7 @@ struct buffer_object {
 	unsigned long long buffer_idx;
 };
 
+
 static int buffer_objs_cnt;
 static struct buffer_object buffer_objs[MAX_BUFFER_OBJECTS];
 
@@ -352,6 +354,15 @@ static void* workbuffer_idx_to_ptr(unsigned long long idx)
 {
 	assert(workbuffer != NULL);
 	return (((unsigned char*)workbuffer) + idx);
+}
+
+static unsigned long long workbuffer_size_add(struct vec2i size)
+{
+	unsigned long long idx = workbuffer_byte_cnt;
+	workbuffer_byte_cnt += size.x * size.y * 3;
+	workbuffer = realloc(workbuffer, workbuffer_byte_cnt);
+	assert(workbuffer != NULL);
+	return idx;
 }
 
 static void draw_text(
@@ -430,14 +441,18 @@ static void pixel_copy(
 	}
 }
 
+static struct vec2i get_text_require_buffer_size_ex(int linelen, int lines)
+{
+	const int w =  (linelen * CHAR_W) + linelen;
+	const int h = (lines * CHAR_H) + lines;
+	return (struct vec2i) { .x = w, .y = h };
+}
+
 static struct vec2i get_text_required_buffer_size(const char* str)
 {
 	const int linelen = str_longest_line_len(str);
 	const int lines = 1 + str_chr_cnt(str, '\n');
-	const int w =  (linelen * CHAR_W) + linelen;
-	const int h = (lines * CHAR_H) + lines;
-
-	return (struct vec2i) { .x = w, .y = h };
+	return get_text_require_buffer_size_ex(linelen, lines);
 }
 
 
@@ -501,11 +516,9 @@ int zui_static_text_create(int winid, const char* str, struct vec2i origin)
 		.size = size
 	};
 
-	buffer_objs[id].buffer_idx = workbuffer_byte_cnt;
-
-	workbuffer_byte_cnt += size.x * size.y * 3;
-	workbuffer = realloc(workbuffer, workbuffer_byte_cnt);
-	assert(workbuffer != NULL);
+	buffer_objs[id].buffer_idx = workbuffer_size_add(
+		buffer_objs[id].rect.size
+	);
 
 	draw_text(
 		str,
@@ -515,6 +528,59 @@ int zui_static_text_create(int winid, const char* str, struct vec2i origin)
 	);
 
 	return id;
+}
+
+int zui_dynamic_text_create(
+	int winid,
+	int max_line_len,
+	int max_lines
+)
+{
+	assert(
+		buffer_objs_cnt < MAX_BUFFER_OBJECTS &&
+		max_line_len > 0 &&
+		max_lines > 0
+	);
+
+	const int id = buffer_objs_cnt++;
+
+	const struct vec2i size = get_text_require_buffer_size_ex(max_line_len, max_lines);
+	const struct vec2i coord = {0, 0};
+	const unsigned long long buffer_idx = workbuffer_size_add(size);
+	memset(workbuffer_idx_to_ptr(buffer_idx), 0, size.x * size.y * 3);
+
+	buffer_objs[id] = (struct buffer_object) {
+		.buffer_idx = buffer_idx,
+		.rect = (struct recti) {
+			.coord = {0, 0},
+			.size = size
+		}
+	};
+
+	return id;
+}
+
+void zui_dynamic_text_set(int obj_id, const char* str, struct vec2i origin)
+{
+	assert(obj_id < buffer_objs_cnt && str != NULL && origin.x >= 0 && origin.y >= 0);
+
+	struct buffer_object* obj = &buffer_objs[obj_id];
+
+	const struct vec2i size = get_text_required_buffer_size(str);
+	// assert(obj->rect.size.x >= size.x && obj->rect.size.y >= size.y);
+
+	obj->rect.coord = (struct vec2i) {
+		.x = origin.x - (size.x / 2),
+		.y = origin.y - (size.y / 2)
+	};
+	obj->rect.size = size; // FIXME
+
+	draw_text(
+		str,
+		strlen(str),
+		workbuffer_idx_to_ptr(obj->buffer_idx),
+		size
+	);
 }
 
 void zui_update(void)

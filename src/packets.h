@@ -3,6 +3,10 @@
 #include "utils.h"
 
 
+#define PING_PONG_PACKET_PORT      (7171)
+#define INPUT_PACKET_PORT          (7172)
+#define INPUT_FEEDBACK_PACKET_PORT (7173)
+
 
 enum wiiu_gamepad_btn {
 	WIIU_GAMEPAD_BTN_A       = 0x8000,
@@ -105,6 +109,15 @@ struct input_packet {
 
 struct input_feedback_packet {
    uint8_t placeholder;
+};
+
+enum ping_pong_packet_types {
+   PING_PONG_PACKET_TYPE_PING = 0xC0,
+   PING_PONG_PACKET_TYPE_PONG = 0xDE
+};
+
+struct ping_pong_packet {
+   uint8_t type;
 };
 
 

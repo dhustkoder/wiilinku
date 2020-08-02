@@ -36,6 +36,9 @@ static BITMAPINFO bmi = {
 
 static uint8_t framebuffer[GUI_WIDTH * GUI_HEIGHT * 3];
 
+static int connection_status_text_id;
+
+
 static void window_size_update(void)
 {
 	RECT rect;
@@ -77,6 +80,7 @@ bool gui_init(void)
 			"wiiupcx", WS_OVERLAPPEDWINDOW,
 			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 			NULL, NULL, wc.hInstance, NULL);
+
 	if (!hwnd_mainwin) {
 		log_info("Failed to initialize WINDOW HWND");
 		return false;
@@ -88,18 +92,20 @@ bool gui_init(void)
 
 	hdc_mainwin = GetDC(hwnd_mainwin);
 
-	char* ip;
-	short port;
-	connection_get_address(&ip, &port);
-
-	char title_buffer[512];
-	sprintf(title_buffer, "wiiupcx - ip %s - port %d", ip, port);
+	char title_buffer[96];
+	sprintf(title_buffer, "wiiupcx - ip %s", connection_get_host_address());
 
 	if (!zui_init(title_buffer, framebuffer, GUI_WIDTH, GUI_HEIGHT)) {
 		log_info("failed to initialize Zui");
 		gui_term();
 		return false;
 	}
+
+	connection_status_text_id = zui_dynamic_text_create(
+		0,
+		64,
+		1
+	);
 
 	return true;
 }
@@ -118,6 +124,29 @@ gui_event_t gui_win_update(void)
 
 	while (PeekMessageA(&msg_mainwin, hwnd_mainwin, 0, 0, PM_REMOVE))
 		DispatchMessage(&msg_mainwin);
+
+
+	if (!connection_is_connected()) {
+		zui_dynamic_text_set(
+			connection_status_text_id,
+			"CONNECTION STATUS DISCONNECTED",
+			(struct vec2i) {
+				GUI_WIDTH / 2,
+				GUI_HEIGHT / 2
+			}
+		);
+	} else {
+		char buf[64];
+		sprintf(buf, "CONNECTION STATUS CONNECTED TO: %s", connection_get_client_address());
+		zui_dynamic_text_set(
+			connection_status_text_id,
+			buf,
+			(struct vec2i) {
+				GUI_WIDTH / 2,
+				GUI_HEIGHT / 2
+			}
+		);
+	}
 
 	zui_update();
 
