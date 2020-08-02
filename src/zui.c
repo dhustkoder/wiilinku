@@ -545,7 +545,6 @@ int zui_dynamic_text_create(
 	const int id = buffer_objs_cnt++;
 
 	const struct vec2i size = get_text_require_buffer_size_ex(max_line_len, max_lines);
-	const struct vec2i coord = {0, 0};
 	const unsigned long long buffer_idx = workbuffer_size_add(size);
 	memset(workbuffer_idx_to_ptr(buffer_idx), 0, size.x * size.y * 3);
 

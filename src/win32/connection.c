@@ -122,7 +122,7 @@ static bool init_recv_socket(
 	SOCKET* sock,
 	int proto,
 	SOCKET* client_sock,
-	struct sockaddr_in* client_addr,
+	struct sockaddr_in* accepted_addr,
 	short port
 )
 {
@@ -147,9 +147,9 @@ static bool init_recv_socket(
 			PING_PONG_PACKET_PORT
 		);
 
-		int addrlen = sizeof *client_addr;
-		memset(client_addr, 0, addrlen);
-		*client_sock = accept(*sock, (struct sockaddr*)client_addr, &addrlen);
+		int addrlen = sizeof *accepted_addr;
+		memset(accepted_addr, 0, addrlen);
+		*client_sock = accept(*sock, (struct sockaddr*)accepted_addr, &addrlen);
 		log_info("connected to: %s", connection_get_client_address());
 	}
 
@@ -189,7 +189,7 @@ static bool fill_local_host_and_port(void)
 	return true;
 }
 
-static DWORD WINAPI connection_wait_thread_main(LPVOID p)
+static DWORD WINAPI connection_wait_thread_main()
 {
     if (!init_recv_socket(
     		&ping_pong_socket,
@@ -230,7 +230,7 @@ bool connection_init(void)
 	if (!fill_local_host_and_port()) 
 		return false;
 
-	if (!connection_wait_thread_main(NULL))
+	if (!connection_wait_thread_main())
 		return false;
 
 	return true;
