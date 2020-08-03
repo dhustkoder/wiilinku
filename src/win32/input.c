@@ -131,15 +131,18 @@ static DWORD WINAPI input_updater_thread_main(LPVOID param)
 	for (;;) {
 		lasttick = GetTickCount();
 
-		if (connection_receive_input_packet(&input))
+		if (connection_receive_input_packet(&input)) {
 			input_update(&input);
+		} else {
+			continue;
+		}
 
 		tickacc += GetTickCount() - lasttick;
 		if (++framecnt >= 60) {
 			avg_frame_ms = tickacc / framecnt;
 			tickacc = 0;
 			framecnt = 0;
-			log_debug("CMD PACKET AVERAGE FRAME TIME: %ld ms", avg_frame_ms);
+			log_debug("INPUT PACKET AVERAGE FRAME TIME: %ld ms", avg_frame_ms);
 		}
 	}
 

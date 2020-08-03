@@ -4,20 +4,17 @@
 #include "connection.h"
 
 
-#define MAX_PACKET_BLOCK_SIZE (1400)
-
-
-static char hostname[80];
 static struct in_addr local_network_ip;
 static struct sockaddr_in client_addr;
-static int client_addr_length = sizeof client_addr;
 
 
-static SOCKET ping_pong_socket;
-static SOCKET ping_pong_client_socket;
-static SOCKET input_socket;
-static SOCKET input_feedback_socket;
-static bool connected = false;
+static SOCKET ping_pong_socket = INVALID_SOCKET;
+static SOCKET ping_pong_client_socket = INVALID_SOCKET;
+static SOCKET input_socket = INVALID_SOCKET;
+static SOCKET input_feedback_socket = INVALID_SOCKET;
+static volatile bool connected = false;
+static volatile bool connection_terminated = false;
+static HANDLE connection_manager_thread_handle = 0;
 
 
 
@@ -37,7 +34,6 @@ static bool sock_wait_for_data(SOCKET sock)
 	return retval > 0;
 }
 
-
 static bool send_packet(SOCKET sock, const void* data, int size)
 {
 	while (size > 0) {
@@ -47,10 +43,13 @@ static bool send_packet(SOCKET sock, const void* data, int size)
 			sock,
 			data,
 			block_size, 
-			0);
+			0
+		);
 
-		if (ret < block_size)
+		if (ret < block_size || ret == SOCKET_ERROR) {
+			log_debug("send_packet failed: %d", WSAGetLastError());
 			return false;
+		}
 
 		size -= block_size;
 		data = ((uint8_t*)data) + block_size;
@@ -72,10 +71,13 @@ static bool recv_packet(SOCKET sock, void* data, int size)
 			sock,
 			data,
 			block_size,
-			0);
+			0
+		);
 
-		if (ret < block_size)
+		if (ret < block_size || ret == SOCKET_ERROR) {
+			log_debug("recv_packet failed: %d", WSAGetLastError());
 			return false;
+		}
 
 		size -= block_size;
 		data = ((uint8_t*)data) + block_size;
@@ -92,7 +94,7 @@ static bool setup_socket(
 	unsigned short port
 )
 {
-	if (*sock > -1)
+	if (*sock != INVALID_SOCKET)
 		closesocket(*sock);
 
     *sock = socket(
@@ -102,7 +104,7 @@ static bool setup_socket(
     );
 
     if (*sock < 0) {
-    	log_info("failed to start socket");
+    	log_debug("failed to start socket");
     	return false;
     }
 
@@ -130,7 +132,7 @@ static bool init_recv_socket(
 	setup_socket(sock, proto, &address, NULL, port);
 
 	if (bind(*sock, (const struct sockaddr*)&address, sizeof address) != 0) {
-		log_info("failed to bind socket");
+		log_debug("failed to bind socket");
 		return false;
 	}
 
@@ -140,23 +142,20 @@ static bool init_recv_socket(
 			return false;
 		}
 
-		log_info(
-			"host %s listening on: %s:%d",
-			hostname,
-			inet_ntoa(local_network_ip),
-			PING_PONG_PACKET_PORT
-		);
+		if (*client_sock != INVALID_SOCKET) {
+			closesocket(*client_sock);
+		}
 
 		int addrlen = sizeof *accepted_addr;
 		memset(accepted_addr, 0, addrlen);
 		*client_sock = accept(*sock, (struct sockaddr*)accepted_addr, &addrlen);
-		log_info("connected to: %s", connection_get_client_address());
+		log_debug("connected to: %s", connection_get_client_address());
 	}
 
 	return true;
 }
 
- bool init_send_socket(SOCKET* sock, int proto, const char* ip, short port)
+static bool init_send_socket(SOCKET* sock, int proto, const char* ip, short port)
 {
 	struct sockaddr_in host;
  	setup_socket(sock, proto, &host, ip, port);
@@ -169,18 +168,18 @@ static bool init_recv_socket(
 	return true;
 }
 
-
-
 static bool fill_local_host_and_port(void)
 {
+	char hostname[80];
+
 	if (gethostname(hostname, sizeof(hostname)) != 0) {
-		log_info("failed to gethostname: %d", WSAGetLastError());
+		log_debug("failed to gethostname: %d", WSAGetLastError());
 		return false;
 	}
 
 	struct hostent *phe = gethostbyname(hostname);
 	if (phe == NULL || phe->h_addr_list == NULL || phe->h_addr_list[0] == NULL) {
-		log_info("failed to gethostbyname");
+		log_debug("failed to gethostbyname");
 		return false;
 	}
 
@@ -189,7 +188,7 @@ static bool fill_local_host_and_port(void)
 	return true;
 }
 
-static DWORD WINAPI connection_wait_thread_main()
+static bool wait_for_client_and_connect(void)
 {
     if (!init_recv_socket(
     		&ping_pong_socket,
@@ -213,35 +212,83 @@ static DWORD WINAPI connection_wait_thread_main()
 		return false;
 	}
 
-	connected = true;
-
 	return true;
 }
+
+static DWORD WINAPI connection_manager_thread(LPVOID dummy)
+{
+	((void)dummy);
+
+	while (!connection_terminated) {
+
+		if (!connected) {
+			if (wait_for_client_and_connect()) {
+				connected = true;
+			}
+		}
+
+		uint8_t ping = 0xFF;
+		if (!send_packet(ping_pong_client_socket, &ping, sizeof ping)) {
+			connected = false;
+		}
+
+		Sleep(500);
+	}
+
+	return EXIT_SUCCESS;;
+}
+
 
 
 bool connection_init(void)
 {
     WSADATA wsa_data;
     if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
-        log_info("WSAStartup Error");
+        log_debug("WSAStartup Error");
         return false;
     }
 
 	if (!fill_local_host_and_port()) 
 		return false;
 
-	if (!connection_wait_thread_main())
+	connection_terminated = false;
+
+	DWORD thread_id;
+	connection_manager_thread_handle = CreateThread(
+		NULL,
+		0,
+		connection_manager_thread,
+		NULL,
+		0,
+		&thread_id
+	);
+
+	if (connection_manager_thread_handle == 0) {
+		log_debug("failed to start connection manager thread");
 		return false;
+	}
+
 
 	return true;
 }
 
 void connection_term(void)
 {
+	connection_terminated = true;
+
+	if (!TerminateThread(connection_manager_thread_handle, 0))
+		log_debug("failed to terminate thread: %d", GetLastError());
+
 	closesocket(input_socket);
 	closesocket(input_feedback_socket);
 	closesocket(ping_pong_socket);
 	closesocket(ping_pong_client_socket);
+
+	ping_pong_socket = INVALID_SOCKET;
+	ping_pong_client_socket = INVALID_SOCKET;
+	input_socket = INVALID_SOCKET;
+	input_feedback_socket = INVALID_SOCKET;
+
 	WSACleanup();
 }
 
@@ -262,9 +309,11 @@ bool connection_is_connected(void)
 
 bool connection_receive_input_packet(struct input_packet* input)
 {
-	if (recv_packet(input_socket, input, sizeof *input)) {
-		input_packet_reorder(input);
-		return true;
+	if (connected) {
+		if (recv_packet(input_socket, input, sizeof *input)) {
+			input_packet_reorder(input);
+			return true;
+		}
 	}
 
 	return false;
@@ -272,5 +321,7 @@ bool connection_receive_input_packet(struct input_packet* input)
 
 void connection_send_input_feedback_packet(const struct input_feedback_packet* feedback)
 {
-	send_packet(input_feedback_socket, feedback, sizeof *feedback);
+	if (connected) {
+		send_packet(input_feedback_socket, feedback, sizeof *feedback);
+	}
 }

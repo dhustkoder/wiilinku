@@ -12,7 +12,7 @@ typedef int gui_event_t;
 
 extern bool gui_init(void);
 
-extern gui_event_t gui_win_update(void);
+extern gui_event_t gui_update(void);
 
 extern void gui_term(void);
 

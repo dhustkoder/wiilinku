@@ -14,8 +14,6 @@
 #include "connection.h"
 
 
-#define MAX_PACKET_BLOCK_SIZE (1400)
-
 static int ping_pong_socket = -1;
 static int input_socket = -1;
 static int input_feedback_socket = -1;

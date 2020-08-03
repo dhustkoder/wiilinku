@@ -117,7 +117,7 @@ void gui_term(void)
 }
 
 
-gui_event_t gui_win_update(void)
+gui_event_t gui_update(void)
 {
 	if (wm_destroy_request)
 		return GUI_EVENT_WM_DESTROY;

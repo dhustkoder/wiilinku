@@ -69,8 +69,13 @@ static void platform_term(void)
 }
 
 
-static int gui_main_thread(void)
+
+
+int main(void)
 {
+	if (!platform_init())
+		return EXIT_FAILURE;
+	
 	struct input_packet input;
 	memset(&input, 0, sizeof input);
 
@@ -102,24 +107,7 @@ static int gui_main_thread(void)
 		video_render_flip();
 	}
 
-	return EXIT_SUCCESS;
-} 
-
-
-int main(void)
-{
-	if (!platform_init())
-		return EXIT_FAILURE;
-	
-	int ret = gui_main_thread();
-
-	video_render_clear();
-	log_flush();
-	video_render_flip();
-
-	OSSleepTicks(OSMillisecondsToTicks(1000 * 5));
-
 	platform_term();
 
-	return ret;
+	return EXIT_SUCCESS;
 }
