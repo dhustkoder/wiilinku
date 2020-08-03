@@ -16,7 +16,7 @@ static KPADStatus kpads[4];
 static volatile uint8_t kpad_connected[4] = { 0, 0, 0, 0 };
 static volatile uint8_t wiimote_flags = 0;
 static struct input_packet last_input;
-
+static uint8_t rumble_pattern[120];
 
 
 static void wpad_connection_callback(WPADChan chan, int32_t status)
@@ -72,6 +72,7 @@ static void input_update(void)
 	}
 }
 
+
 static int input_updater_thread_main(int argc, const char** argv)
 {
 	struct input_feedback_packet feedback;
@@ -86,6 +87,10 @@ static int input_updater_thread_main(int argc, const char** argv)
 
 		if (connection_receive_input_feedback_packet(&feedback)) {
 			log_debug("recv feedback: %.2X", (unsigned) feedback.placeholder);
+			if (feedback.placeholder != 0)
+				VPADControlMotor(VPAD_CHAN_0, rumble_pattern, sizeof rumble_pattern);
+			else
+				VPADStopMotor(VPAD_CHAN_0);
 		}
 
 	}
@@ -108,6 +113,7 @@ void input_init(void)
 
 	memset(kpads, 0, sizeof kpads);
 	memset(&vpad, 0, sizeof vpad);
+	memset(rumble_pattern, 0xFF, sizeof rumble_pattern);
 
 	OSRunThread(OSGetDefaultThread(0), input_updater_thread_main, 0, NULL);
 }
