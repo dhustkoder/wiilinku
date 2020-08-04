@@ -225,11 +225,11 @@ static DWORD WINAPI connection_manager_thread(LPVOID dummy)
 			if (wait_for_client_and_connect()) {
 				connected = true;
 			}
-		}
-
-		uint8_t ping = 0xFF;
-		if (!send_packet(ping_pong_client_socket, &ping, sizeof ping)) {
-			connected = false;
+		} else {
+			uint8_t ping = 0xFF;
+			if (!send_packet(ping_pong_client_socket, &ping, sizeof ping)) {
+				connected = false;
+			}
 		}
 
 		Sleep(500);

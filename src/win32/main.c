@@ -21,11 +21,7 @@ static void log_buffer_flusher(const char* log_buffer, int size)
 
 static bool init_platform(void)
 {
-	AttachConsole(ATTACH_PARENT_PROCESS);
-	stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
-	WriteConsoleA(stdout_handle, "\n", 1, NULL, NULL);
-
-	if (!log_init(log_buffer_flusher))
+	if (!log_init())
 		return false;
 
 	if (!connection_init())
@@ -46,7 +42,6 @@ static void terminate_platform(void)
 	connection_term();
 	input_term();
 	log_term();
-	FreeConsole();
 }
 
 

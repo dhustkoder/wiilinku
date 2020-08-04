@@ -33,7 +33,7 @@ static VOID CALLBACK vigem_pad_notification(
 	((void)udata);
 
 	struct input_feedback_packet feedback = {
-		.placeholder = large_motor
+		.placeholder = large_motor|small_motor
 	};
 
 	connection_send_input_feedback_packet(&feedback);
@@ -63,7 +63,7 @@ static void input_update(const struct input_packet* input)
 	);
 
 	const uint32_t wiiu_btns = last_input.gamepad.btns;
-	const uint32_t wiimote_btns = 0;//last_input.wiimotes[0].btns;
+	const uint32_t wiimote_btns = last_input.wiimotes[0].btns;
 
 	vigem_pad.report.wButtons = 0x00;
 
@@ -134,7 +134,7 @@ static DWORD WINAPI input_updater_thread_main(LPVOID param)
 		if (connection_receive_input_packet(&input)) {
 			input_update(&input);
 		} else {
-			continue;
+			Sleep(1);
 		}
 
 		tickacc += GetTickCount() - lasttick;
