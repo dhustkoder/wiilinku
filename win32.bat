@@ -19,13 +19,14 @@ set CFLAGS_DEBUG=%CFLAGS% /Od /Zi /DEBUG:FULL %CDEFS_DEBUG% %INCLUDE_DIRS%
 REM LDFLAGS SETUP
 set INCLUDE_LIBS_DEBUG=/LIBPATH:"externals\ViGEmClient\lib\debug\x64"
 set INCLUDE_LIBS_RELEASE=/LIBPATH:"externals\ViGEmClient\lib\release\x64"
-set LIBS=user32.lib gdi32.lib winmm.lib ws2_32.lib^
-        setupapi.lib ViGEmClient.lib mfreadwrite.lib^
-        mfplat.lib mfuuid.lib ole32.lib
+set LIBS=user32.lib gdi32.lib winmm.lib ws2_32.lib setupapi.lib ViGEmClient.lib^
+         ole32.lib
+
 set LIBS_DEBUG=%LIBS% msvcrtd.lib vcruntimed.lib
+set LIBS_RELEASE=%LIBS% msvcrt.lib vcruntime.lib
 set LDFLAGS=/SUBSYSTEM:WINDOWS /NODEFAULTLIB:LIBCMT /NODEFAULTLIB:LIBCMTD
 set LDFLAGS_DEBUG=%LDFLAGS% %INCLUDE_LIBS_DEBUG% %LIBS_DEBUG%
-set LDFLAGS_RELEASE=%LDFLAGS% %INCLUDE_LIBS_RELEASE% %LIBS%
+set LDFLAGS_RELEASE=%LDFLAGS% %INCLUDE_LIBS_RELEASE% %LIBS_RELEASE%
 
 
 REM SOURCE SETUP
