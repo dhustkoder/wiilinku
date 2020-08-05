@@ -8,6 +8,8 @@ static HANDLE stdout_handle;
 static char log_internal_buffer[LOG_INTERNAL_BUFFER_SIZE];
 static CRITICAL_SECTION log_internal_write_crit_sect;
 
+
+
 void log_internal_write(enum log_level lvl, const char* fmt, ...)
 {
 

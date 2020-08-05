@@ -9,12 +9,12 @@
 #include <errno.h>
 #include <unistd.h>
 #include <assert.h>
-#include "log.h"
+#include "video.h"
 #include "input.h"
 #include "connection.h"
 
 
-static int ping_pong_socket = -1;
+static int ping_socket = -1;
 static int input_socket = -1;
 static int input_feedback_socket = -1;
 static bool connected = false;
@@ -45,7 +45,7 @@ static bool send_packet(int sock, const void* data, int size)
 
 		int ret = send(sock, data, block_size, 0);
 
-		if (ret < block_size)
+		if (ret < block_size || ret == SO_ERROR)
 			return false;
 
 		size -= block_size;
@@ -65,7 +65,7 @@ static bool recv_packet(int sock, void* data, int size)
 
 		int ret = recv(sock, data, block_size, 0);
 
-		if (ret < block_size)
+		if (ret < block_size || ret == SO_ERROR)
 			return false;
 
 		size -= block_size;
@@ -94,7 +94,7 @@ static bool setup_socket(
     );
 
     if (*sock < 0) {
-    	log_info("failed to start socket");
+    	video_log_write("failed to start socket");
     	return false;
     }
 
@@ -117,7 +117,7 @@ static bool setup_recv_socket(int* sock, int proto, unsigned short port)
 	setup_socket(sock, proto, &addr, NULL, port);
 
 	if (bind(*sock, (const struct sockaddr*)&addr, sizeof addr) != 0) {
-		log_debug("failed to bind socket");
+		video_log_write("failed to bind socket");
 		return false;
 	}
 
@@ -130,7 +130,7 @@ static bool setup_send_socket(int* sock, int proto, const char* ip, unsigned sho
 	setup_socket(sock, proto, &addr, ip, port);
 
 	if (connect(*sock, (struct sockaddr*)&addr, sizeof addr) != 0) {
-		log_debug("socket connect failed");
+		video_log_write("socket connect failed");
 		return false;
 	}	
 	
@@ -150,10 +150,10 @@ void connection_term(void)
 
 	socketclose(input_feedback_socket);
 	socketclose(input_socket);
-	socketclose(ping_pong_socket);
+	socketclose(ping_socket);
 	socket_lib_finish();
 
-	ping_pong_socket = -1;
+	ping_socket = -1;
 	input_socket = -1;
 	input_feedback_socket = -1;
 
@@ -161,7 +161,7 @@ void connection_term(void)
 
 bool connection_connect(const char* host_ip)
 {
-	if (!setup_send_socket(&ping_pong_socket, IPPROTO_TCP, host_ip, PING_PONG_PACKET_PORT))
+	if (!setup_send_socket(&ping_socket, IPPROTO_TCP, host_ip, PING_PACKET_PORT))
 		return false;
 
 	if (!setup_send_socket(&input_socket, IPPROTO_UDP, host_ip, INPUT_PACKET_PORT))
@@ -198,3 +198,17 @@ bool connection_receive_input_feedback_packet(struct input_feedback_packet* feed
 }
 
 
+bool connection_ping_host(void)
+{
+	if (connection_is_connected()) {
+		uint8_t ping = 0xFF;
+		if (send_packet(ping_socket, &ping, sizeof ping)) {
+			return true;
+		} else {
+			connected = false;
+			return false;
+		}
+	}
+
+	return false;
+}

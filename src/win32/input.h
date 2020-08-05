@@ -6,6 +6,7 @@
 
 extern bool input_init(void);
 extern void input_term(void);
+extern void input_update(const struct input_packet* input);
 
 
 #endif

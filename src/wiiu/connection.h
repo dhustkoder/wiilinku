@@ -11,6 +11,8 @@ extern bool connection_is_connected(void);
 
 extern void connection_send_input_packet(const struct input_packet* input);
 extern bool connection_receive_input_feedback_packet(struct input_feedback_packet* feedback);
+extern bool connection_ping_host(void);
+
 
 
 #endif

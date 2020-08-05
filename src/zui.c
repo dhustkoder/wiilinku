@@ -349,6 +349,8 @@ static void* workbuffer = NULL;
 static struct vec2i targetbuffer_size = { 0, 0 };
 static void* targetbuffer = NULL;
 
+static bool need_render = false;
+
 
 static void* workbuffer_idx_to_ptr(unsigned long long idx)
 {
@@ -372,7 +374,8 @@ static void draw_text(
 	const struct vec2i dest_size
 )
 {
-
+	need_render = true;
+	
 	const struct rgb24* cset = (void*)charset_data;
 	
 	int dest_x = 0, dest_y = 0;
@@ -589,6 +592,9 @@ void zui_update(void)
 
 void zui_render(void)
 {
+	if (!need_render)
+		return;
+
 	for (int i = 0; i < buffer_objs_cnt; ++i) {
 		struct buffer_object* obj = &buffer_objs[i];
 		pixel_copy(
@@ -598,6 +604,8 @@ void zui_render(void)
 			obj->rect
 		);
 	}
+
+	need_render = false;
 }
 
 

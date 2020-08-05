@@ -11,10 +11,9 @@ typedef int gui_event_t;
 
 
 extern bool gui_init(void);
-
-extern gui_event_t gui_update(void);
-
 extern void gui_term(void);
+extern gui_event_t gui_update(void);
+extern void gui_set_connection_status(bool connected, const char* clientaddr);
 
 
 #endif

@@ -8,25 +8,23 @@ static struct in_addr local_network_ip;
 static struct sockaddr_in client_addr;
 
 
-static SOCKET ping_pong_socket = INVALID_SOCKET;
-static SOCKET ping_pong_client_socket = INVALID_SOCKET;
+static SOCKET ping_tcp_socket = INVALID_SOCKET;
+static SOCKET ping_client_socket = INVALID_SOCKET;
 static SOCKET input_socket = INVALID_SOCKET;
 static SOCKET input_feedback_socket = INVALID_SOCKET;
-static volatile bool connected = false;
-static volatile bool connection_terminated = false;
-static HANDLE connection_manager_thread_handle = 0;
+static bool connected = false;
 
 
 
-static bool sock_wait_for_data(SOCKET sock) 
+static bool sock_wait_for_data(SOCKET sock, int sec, int usec) 
 {
 	fd_set readfd;
 
 	FD_ZERO(&readfd);
 	FD_SET(sock, &readfd);
 	struct timeval timer = {
-		.tv_sec = 1,
-		.tv_usec = 0
+		.tv_sec = sec,
+		.tv_usec = usec
 	};
 
 	int retval = select(0, &readfd, NULL, NULL, &timer);
@@ -61,7 +59,7 @@ static bool send_packet(SOCKET sock, const void* data, int size)
 static bool recv_packet(SOCKET sock, void* data, int size)
 {
 
-	if (!sock_wait_for_data(sock))
+	if (!sock_wait_for_data(sock, 1, 0))
 		return false;
 
 	while (size > 0) {
@@ -149,7 +147,7 @@ static bool init_recv_socket(
 		int addrlen = sizeof *accepted_addr;
 		memset(accepted_addr, 0, addrlen);
 		*client_sock = accept(*sock, (struct sockaddr*)accepted_addr, &addrlen);
-		log_debug("connected to: %s", connection_get_client_address());
+		log_debug("connected to: %s", inet_ntoa(client_addr.sin_addr));
 	}
 
 	return true;
@@ -188,56 +186,59 @@ static bool fill_local_host_and_port(void)
 	return true;
 }
 
-static bool wait_for_client_and_connect(void)
+bool connection_wait_client(void)
 {
-    if (!init_recv_socket(
-    		&ping_pong_socket,
-    	    IPPROTO_TCP,
-    	    &ping_pong_client_socket,
-    	    &client_addr,
-    	    PING_PONG_PACKET_PORT)
-    	) {
-    	return false;
-	}
+	bool success = init_recv_socket(
+		&ping_tcp_socket,
+		IPPROTO_TCP,
+    	&ping_client_socket,
+    	&client_addr,
+		PING_PACKET_PORT
+    );
 
-	if (!init_recv_socket(&input_socket, IPPROTO_UDP, NULL, NULL, INPUT_PACKET_PORT))
+	if (!success)
 		return false;
 
-	if (!init_send_socket(
-			&input_feedback_socket,
-			IPPROTO_UDP,
-			inet_ntoa(client_addr.sin_addr),
-			INPUT_FEEDBACK_PACKET_PORT)
-		) {
-		return false;
-	}
+	success = init_recv_socket(
+		&input_socket,
+		IPPROTO_UDP,
+		NULL,
+		NULL,
+		INPUT_PACKET_PORT
+	);
 
+	if (!success)
+		return false;
+
+	success = init_send_socket(
+		&input_feedback_socket,
+		IPPROTO_UDP,
+		inet_ntoa(client_addr.sin_addr),
+		INPUT_FEEDBACK_PACKET_PORT
+	);
+
+	if (!success)
+		return false;
+
+	connected = true;
 	return true;
 }
 
-static DWORD WINAPI connection_manager_thread(LPVOID dummy)
+bool connection_ping_client(void)
 {
-	((void)dummy);
-
-	while (!connection_terminated) {
-
-		if (!connected) {
-			if (wait_for_client_and_connect()) {
-				connected = true;
-			}
+	if (connection_is_connected()) {
+		uint8_t ping = 0xFF;
+		if (send_packet(ping_client_socket, &ping, sizeof ping)) {
+			return true;
 		} else {
-			uint8_t ping = 0xFF;
-			if (!send_packet(ping_pong_client_socket, &ping, sizeof ping)) {
-				connected = false;
-			}
+			log_debug("disconnected from: %s", inet_ntoa(client_addr.sin_addr));
+			connected = false;
+			return false;
 		}
-
-		Sleep(500);
 	}
 
-	return EXIT_SUCCESS;;
+	return false;
 }
-
 
 
 bool connection_init(void)
@@ -251,41 +252,18 @@ bool connection_init(void)
 	if (!fill_local_host_and_port()) 
 		return false;
 
-	connection_terminated = false;
-
-	DWORD thread_id;
-	connection_manager_thread_handle = CreateThread(
-		NULL,
-		0,
-		connection_manager_thread,
-		NULL,
-		0,
-		&thread_id
-	);
-
-	if (connection_manager_thread_handle == 0) {
-		log_debug("failed to start connection manager thread");
-		return false;
-	}
-
-
 	return true;
 }
 
 void connection_term(void)
 {
-	connection_terminated = true;
-
-	if (!TerminateThread(connection_manager_thread_handle, 0))
-		log_debug("failed to terminate thread: %d", GetLastError());
-
 	closesocket(input_socket);
 	closesocket(input_feedback_socket);
-	closesocket(ping_pong_socket);
-	closesocket(ping_pong_client_socket);
+	closesocket(ping_tcp_socket);
+	closesocket(ping_client_socket);
 
-	ping_pong_socket = INVALID_SOCKET;
-	ping_pong_client_socket = INVALID_SOCKET;
+	ping_tcp_socket = INVALID_SOCKET;
+	ping_client_socket = INVALID_SOCKET;
 	input_socket = INVALID_SOCKET;
 	input_feedback_socket = INVALID_SOCKET;
 
@@ -307,7 +285,7 @@ bool connection_is_connected(void)
 	return connected;
 }
 
-bool connection_receive_input_packet(struct input_packet* input)
+bool connection_recv_input_packet(struct input_packet* input)
 {
 	if (connected) {
 		if (recv_packet(input_socket, input, sizeof *input)) {

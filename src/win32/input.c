@@ -6,7 +6,6 @@
 
 
 static struct input_packet last_input;
-static HANDLE input_thread_handle;
 
 
 static struct vigem_pad {
@@ -25,12 +24,12 @@ static VOID CALLBACK vigem_pad_notification(
 	LPVOID udata
 )
 {
-	((void)client);
-	((void)target);
-	((void)large_motor);
-	((void)small_motor);
-	((void)led_number);
-	((void)udata);
+	__pragma(warning(suppress:4100)) client;
+	__pragma(warning(suppress:4100)) target;
+	__pragma(warning(suppress:4100)) large_motor;
+	__pragma(warning(suppress:4100)) small_motor;
+	__pragma(warning(suppress:4100)) led_number;
+	__pragma(warning(suppress:4100)) udata;
 
 	struct input_feedback_packet feedback = {
 		.placeholder = large_motor|small_motor
@@ -38,7 +37,7 @@ static VOID CALLBACK vigem_pad_notification(
 
 	connection_send_input_feedback_packet(&feedback);
 
-	log_info(
+	log_debug(
 		"X360 NOTIFICATION CALLED: \n"
 		"%.2X large_motor\n"
 		"%.2X small_motor\n",
@@ -48,7 +47,55 @@ static VOID CALLBACK vigem_pad_notification(
 }
 
 
-static void input_update(const struct input_packet* input)
+
+bool input_init(void)
+{
+	vigem_pad.client = vigem_alloc();
+	VIGEM_ERROR err = vigem_connect(vigem_pad.client);
+
+	if (err != VIGEM_ERROR_NONE) {
+		log_info("vigem_connect error = %X\n", err);
+		return false;
+	}
+
+	vigem_pad.target = vigem_target_x360_alloc();
+	err = vigem_target_add(vigem_pad.client, vigem_pad.target);
+
+	if (err != VIGEM_ERROR_NONE) {
+		log_info("vigem_target_add error = %X\n", err);
+		return false;
+	}
+
+	err = vigem_target_x360_register_notification(
+		vigem_pad.client,
+		vigem_pad.target,
+		&vigem_pad_notification,
+		NULL
+	);
+
+	if (err != VIGEM_ERROR_NONE) {
+		log_info("vigem_target_x360_register_notification error = %X\n", err);
+		return false;
+	}
+
+	XUSB_REPORT_INIT(&vigem_pad.report);
+
+
+	return true;
+}
+
+
+void input_term(void)
+{
+	vigem_target_x360_unregister_notification(vigem_pad.target);
+	vigem_target_remove(vigem_pad.client, vigem_pad.target);
+	vigem_target_free(vigem_pad.target);
+	vigem_free(vigem_pad.client);
+}
+
+
+
+void input_update(const struct input_packet* input)
 {
 	if (memcmp(&last_input, input, sizeof last_input) == 0)
 		return;
@@ -116,103 +163,3 @@ static void input_update(const struct input_packet* input)
 		log_debug("Error on vigem target update: %X\n", ret);
 	}
 }
-
-static DWORD WINAPI input_updater_thread_main(LPVOID param)
-{
-	((void)param);
-
-	DWORD avg_frame_ms;
-	DWORD lasttick;
-	DWORD tickacc = 0;
-	int framecnt = 0;
-
-	struct input_packet input;
-
-	for (;;) {
-		lasttick = GetTickCount();
-
-		if (connection_receive_input_packet(&input)) {
-			input_update(&input);
-		} else {
-			Sleep(1);
-		}
-
-		tickacc += GetTickCount() - lasttick;
-		if (++framecnt >= 60) {
-			avg_frame_ms = tickacc / framecnt;
-			tickacc = 0;
-			framecnt = 0;
-			log_debug("INPUT PACKET AVERAGE FRAME TIME: %ld ms", avg_frame_ms);
-		}
-	}
-
-	return EXIT_SUCCESS;
-}
-
-
-
-
-bool input_init(void)
-{
-	vigem_pad.client = vigem_alloc();
-	VIGEM_ERROR err = vigem_connect(vigem_pad.client);
-
-	if (err != VIGEM_ERROR_NONE) {
-		log_info("vigem_connect error = %X\n", err);
-		return false;
-	}
-
-	vigem_pad.target = vigem_target_x360_alloc();
-	err = vigem_target_add(vigem_pad.client, vigem_pad.target);
-
-	if (err != VIGEM_ERROR_NONE) {
-		log_info("vigem_target_add error = %X\n", err);
-		return false;
-	}
-
-	err = vigem_target_x360_register_notification(
-		vigem_pad.client,
-		vigem_pad.target,
-		&vigem_pad_notification,
-		NULL
-	);
-
-	if (err != VIGEM_ERROR_NONE) {
-		log_info("vigem_target_x360_register_notification error = %X\n", err);
-		return false;
-	}
-
-	XUSB_REPORT_INIT(&vigem_pad.report);
-
-	DWORD thread_id;
-
-	input_thread_handle = CreateThread(
-		NULL,
-		0,
-		input_updater_thread_main,
-		NULL,
-		0,
-		&thread_id
-	);
-
-	if (input_thread_handle == 0) {
-		log_debug("failed to start input thread");
-		return false;
-	}
-
-
-	return true;
-}
-
-
-void input_term(void)
-{
-	if (!TerminateThread(input_thread_handle, 0))
-		log_info("failed to terminate thread: %d", GetLastError());
-
-	vigem_target_x360_unregister_notification(vigem_pad.target);
-	vigem_target_remove(vigem_pad.client, vigem_pad.target);
-	vigem_target_free(vigem_pad.target);
-	vigem_free(vigem_pad.client);
-}
-

@@ -16,6 +16,9 @@ extern int zui_dynamic_text_create(
 );
 extern void zui_dynamic_text_set(int obj_id, const char* str, struct vec2i origin);
 
+
+
+
 #endif /* WIIUPCX_ZUI_H_ */
 
 

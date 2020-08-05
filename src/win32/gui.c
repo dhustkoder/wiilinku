@@ -107,6 +107,8 @@ bool gui_init(void)
 		1
 	);
 
+	gui_set_connection_status(false, NULL);
+
 	return true;
 }
 
@@ -116,17 +118,9 @@ void gui_term(void)
 	DestroyWindow(hwnd_mainwin);
 }
 
-
-gui_event_t gui_update(void)
+void gui_set_connection_status(bool connected, const char* clientaddr)
 {
-	if (wm_destroy_request)
-		return GUI_EVENT_WM_DESTROY;
-
-	while (PeekMessageA(&msg_mainwin, hwnd_mainwin, 0, 0, PM_REMOVE))
-		DispatchMessage(&msg_mainwin);
-
-
-	if (!connection_is_connected()) {
+	if (!connected) {
 		zui_dynamic_text_set(
 			connection_status_text_id,
 			"CONNECTION STATUS DISCONNECTED",
@@ -137,7 +131,7 @@ gui_event_t gui_update(void)
 		);
 	} else {
 		char buf[64];
-		sprintf(buf, "CONNECTION STATUS CONNECTED TO: %s", connection_get_client_address());
+		sprintf(buf, "CONNECTION STATUS CONNECTED TO: %s", clientaddr);
 		zui_dynamic_text_set(
 			connection_status_text_id,
 			buf,
@@ -147,6 +141,17 @@ gui_event_t gui_update(void)
 			}
 		);
 	}
+}
+
+bool need_render = true;
+gui_event_t gui_update(void)
+{
+	if (wm_destroy_request)
+		return GUI_EVENT_WM_DESTROY;
+
+	while (PeekMessageA(&msg_mainwin, hwnd_mainwin, 0, 0, PM_REMOVE))
+		DispatchMessage(&msg_mainwin);
+
 
 	zui_update();
 
@@ -160,8 +165,6 @@ gui_event_t gui_update(void)
 
 
 	EndPaint(hwnd_mainwin, &paintstruct);
-
-	Sleep(1000 / 58);
 
 	return 0;
 }

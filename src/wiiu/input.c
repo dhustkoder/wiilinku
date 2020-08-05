@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <vpad/input.h>
+#include <string.h>
 #include <padscore/kpad.h>
 #include <padscore/wpad.h>
 #include <coreinit/thread.h>
@@ -7,7 +8,7 @@
 #include "packets.h"
 #include "connection.h"
 #include "input.h"
-#include "log.h"
+#include "video.h"
 
 
 static VPADReadError verror;
@@ -21,7 +22,7 @@ static uint8_t rumble_pattern[120];
 
 static void wpad_connection_callback(WPADChan chan, int32_t status)
 {
-	log_info(
+	video_log_write(
 		"UPDATED WPAD[%d] = STATUS %d",
 		(int)chan,
 		(int)status
@@ -44,7 +45,34 @@ static void wpad_connection_callback(WPADChan chan, int32_t status)
 	}
 }
 
-static void input_update(void)
+
+
+
+
+
+void input_init(void)
+{
+	VPADInit();
+	WPADInit();
+	WPADEnableURCC(1);
+
+	WPADSetConnectCallback(WPAD_CHAN_0, wpad_connection_callback);
+	WPADSetConnectCallback(WPAD_CHAN_1, wpad_connection_callback);
+	WPADSetConnectCallback(WPAD_CHAN_2, wpad_connection_callback);
+	WPADSetConnectCallback(WPAD_CHAN_3, wpad_connection_callback);
+
+	memset(kpads, 0, sizeof kpads);
+	memset(&vpad, 0, sizeof vpad);
+	memset(rumble_pattern, 0xFF, sizeof rumble_pattern);
+}
+
+void input_term(void)
+{
+	WPADShutdown();
+	VPADShutdown();
+}
+
+void input_update(void)
 {
 	last_input.flags = wiimote_flags|INPUT_PACKET_FLAG_GAMEPAD;
 	
@@ -72,58 +100,21 @@ static void input_update(void)
 	}
 }
 
-
-static int input_updater_thread_main(int argc, const char** argv)
+void input_update_feedback(const struct input_feedback_packet* fb)
 {
-	struct input_feedback_packet feedback;
-
-	for (;;) {
-		input_update();
-
-		if (last_input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME)
-			goto Lexit;
-
-		connection_send_input_packet(&last_input);
-
-		if (connection_receive_input_feedback_packet(&feedback)) {
-			log_debug("recv feedback: %.2X", (unsigned) feedback.placeholder);
-			if (feedback.placeholder != 0)
-				VPADControlMotor(VPAD_CHAN_0, rumble_pattern, sizeof rumble_pattern);
-			else
-				VPADStopMotor(VPAD_CHAN_0);
+	static bool is_rumbling = false;
+	if (fb->placeholder != 0x00) {
+		if (!is_rumbling) {
+			is_rumbling = true;
+			VPADControlMotor(VPAD_CHAN_0, rumble_pattern, sizeof rumble_pattern);
 		}
-
+	} else {
+		if (is_rumbling) {
+			is_rumbling = false;
+			VPADStopMotor(VPAD_CHAN_0);
+		}
 	}
-
-Lexit:
-	return EXIT_SUCCESS;
 }
-
-
-void input_init(void)
-{
-	VPADInit();
-	WPADInit();
-	WPADEnableURCC(1);
-
-	WPADSetConnectCallback(WPAD_CHAN_0, wpad_connection_callback);
-	WPADSetConnectCallback(WPAD_CHAN_1, wpad_connection_callback);
-	WPADSetConnectCallback(WPAD_CHAN_2, wpad_connection_callback);
-	WPADSetConnectCallback(WPAD_CHAN_3, wpad_connection_callback);
-
-	memset(kpads, 0, sizeof kpads);
-	memset(&vpad, 0, sizeof vpad);
-	memset(rumble_pattern, 0xFF, sizeof rumble_pattern);
-
-	OSRunThread(OSGetDefaultThread(0), input_updater_thread_main, 0, NULL);
-}
-
-void input_term(void)
-{
-	WPADShutdown();
-	VPADShutdown();
-}
-
 
 
 void input_fetch(struct input_packet* input)
