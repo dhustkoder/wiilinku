@@ -8,7 +8,7 @@
 #include "log.h"
 
 
-static volatile bool program_terminated = false;
+static volatile bool terminate_threads = false;
 static HANDLE connection_state_manager_thread_handle;
 static HANDLE connection_input_manager_thread_handle;
 
@@ -19,7 +19,7 @@ static DWORD WINAPI connection_state_manager_thread(LPVOID lp)
 
 	DWORD ping_timer = GetTickCount();
 
-	while (!program_terminated) {
+	while (!terminate_threads) {
 
 		if (connection_is_connected()) {
 
@@ -53,7 +53,7 @@ static DWORD WINAPI connection_input_manger_thread(LPVOID lp)
 
 	struct input_packet input;
 
-	while (!program_terminated) {
+	while (!terminate_threads) {
 		if (!connection_is_connected()) {
 			Sleep(1000);
 			continue;
@@ -114,7 +114,7 @@ static bool init_platform(void)
 
 static void terminate_platform(void)
 {
-	program_terminated = true;
+	terminate_threads = true;
 
 	for (int i = 0; i < sizeof(thandles)/sizeof(thandles[0]); ++i) {
 		if (WaitForSingleObject(*thandles[i], 1000) != WAIT_OBJECT_0) {
