@@ -71,13 +71,13 @@ bool gui_init(void)
 {
 	memset(&wc, 0, sizeof(wc));
 	wc.lpfnWndProc   = window_proc_clbk;
-	wc.lpszClassName = "wiiupcx";
+	wc.lpszClassName = "wiilinku";
 
 	RegisterClass(&wc);
 
 	hwnd_mainwin = CreateWindowEx(
 			0, wc.lpszClassName,
-			"wiiupcx", WS_OVERLAPPEDWINDOW,
+			"wiilinku", WS_OVERLAPPEDWINDOW,
 			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 			NULL, NULL, wc.hInstance, NULL);
 
@@ -93,7 +93,7 @@ bool gui_init(void)
 	hdc_mainwin = GetDC(hwnd_mainwin);
 
 	char title_buffer[96];
-	sprintf(title_buffer, "wiiupcx - ip %s", connection_get_host_address());
+	sprintf(title_buffer, "wiilinku - ip %s", connection_get_host_address());
 
 	if (!zui_init(title_buffer, framebuffer, GUI_WIDTH, GUI_HEIGHT)) {
 		log_info("failed to initialize Zui");
