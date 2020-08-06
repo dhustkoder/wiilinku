@@ -1,5 +1,5 @@
-#ifndef WIIUPCX_PACKETS_H_
-#define WIIUPCX_PACKETS_H_
+#ifndef WIILINKU_PACKETS_H_
+#define WIILINKU_PACKETS_H_
 #include "utils.h"
 
 

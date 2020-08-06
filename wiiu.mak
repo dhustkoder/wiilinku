@@ -24,7 +24,7 @@ BUILD_TYPE   = Debug
 BUILD       := wiiu_debug_build
 endif
 
-TARGET		:=	$(BUILD)/wiiupcx
+TARGET		:=	$(BUILD)/wiilinku
 SOURCES		:=	src src/wiiu
 DATA		:=	data
 INCLUDES	:=	src src/wiiu

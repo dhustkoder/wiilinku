@@ -1,5 +1,5 @@
-#ifndef WIIUPCX_INPUT_H_
-#define WIIUPCX_INPUT_H_
+#ifndef WIILINKU_INPUT_H_
+#define WIILINKU_INPUT_H_
 #include <stdint.h>
 #include "packets.h"
 

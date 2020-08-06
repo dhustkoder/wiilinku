@@ -1,5 +1,5 @@
-#ifndef WIIUPCX_LOG_H_
-#define WIIUPCX_LOG_H_
+#ifndef WIILINKU_LOG_H_
+#define WIILINKU_LOG_H_
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -25,7 +25,7 @@ extern void log_internal_write(enum log_level lvl, const char* fmt, ...);
 #define log_debug(...) ((void)0)
 #endif
 
-#endif /* WIIUPCX_LOG_H_ */
+#endif /* WIILINKU_LOG_H_ */
 
 
 

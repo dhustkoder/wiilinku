@@ -65,8 +65,6 @@ static int input_manager_thread(
 	__attribute__((unused)) char** b
 )
 {
-	((void)a);((void)b);
-
 	struct input_feedback_packet feedback;
 	struct input_packet input;
 

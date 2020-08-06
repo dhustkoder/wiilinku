@@ -1,5 +1,5 @@
-#ifndef WIIUPCX_CONNECTION_H_
-#define WIIUPCX_CONNECTION_H_
+#ifndef WIILINKU_CONNECTION_H_
+#define WIILINKU_CONNECTION_H_
 #include <stdbool.h>
 #include "packets.h"
 

@@ -1,5 +1,5 @@
-#ifndef WIIUPCX_HOST_GUI_H_
-#define WIIUPCX_HOST_GUI_H_
+#ifndef WIILINKU_HOST_GUI_H_
+#define WIILINKU_HOST_GUI_H_
 #include "utils.h"
 
 enum gui_event {

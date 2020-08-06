@@ -1,5 +1,5 @@
-#ifndef WIIUPCX_ZUI_H_
-#define WIIUPCX_ZUI_H_
+#ifndef WIILINKU_ZUI_H_
+#define WIILINKU_ZUI_H_
 #include <stdint.h>
 #include "utils.h"
 
@@ -19,6 +19,6 @@ extern void zui_dynamic_text_set(int obj_id, const char* str, struct vec2i origi
 
 
 
-#endif /* WIIUPCX_ZUI_H_ */
+#endif /* WIILINKU_ZUI_H_ */
 
 

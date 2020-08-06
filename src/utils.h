@@ -1,5 +1,5 @@
-#ifndef WIIUPCX_UTILS_H_
-#define WIIUPCX_UTILS_H_
+#ifndef WIILINKU_UTILS_H_
+#define WIILINKU_UTILS_H_
 #include <stdint.h>
 #include <stdbool.h>
 
