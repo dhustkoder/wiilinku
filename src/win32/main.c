@@ -23,18 +23,25 @@ static DWORD WINAPI connection_state_manager_thread(LPVOID lp)
 
 		if (connection_is_connected()) {
 
-			if ((GetTickCount() - ping_timer) >= 6000) {
-				connection_ping_client();
+			if ((GetTickCount() - ping_timer) >= (PING_INTERVAL_SEC * 1000)) {
+				if (!connection_ping_client()) {
+					gui_set_connection_status(false, NULL);
+				} else {
+					Sleep(PING_INTERVAL_SEC * 1000);
+				}
 				ping_timer = GetTickCount();
 			}
 
 		} else {
 
-			connection_wait_client();
+			if (connection_wait_client()) {
+				gui_set_connection_status(true, connection_get_client_address());
+			} else {
+				Sleep(1000);
+			}
 
 		}
 
-		Sleep(1000);
 	}
 
 	return 0;
@@ -159,7 +166,7 @@ int CALLBACK WinMain(
 			Sleep(33 - (GetTickCount() - frametime));
 
 		if ((GetTickCount() - lasttick) >= 1000)  {
-			log_info("MAIN THREAD FPS: %ld", framecnt);
+			log_debug("MAIN THREAD FPS: %ld", framecnt);
 			framecnt = 0;
 			lasttick = GetTickCount();
 		}

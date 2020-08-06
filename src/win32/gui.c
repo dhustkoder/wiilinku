@@ -143,7 +143,6 @@ void gui_set_connection_status(bool connected, const char* clientaddr)
 	}
 }
 
-bool need_render = true;
 gui_event_t gui_update(void)
 {
 	if (wm_destroy_request)
