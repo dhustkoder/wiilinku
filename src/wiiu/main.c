@@ -35,7 +35,9 @@ static int connection_state_manager_thread(
 		if (connection_is_connected()) {
 
 			if (OSTicksToSeconds((ping_timer - OSGetSystemTick())) >= PING_INTERVAL_SEC) {
-				connection_ping_host();
+				if (!connection_ping_host()) {
+					video_log_printf("disconnected");
+				}
 				ping_timer = OSGetSystemTick();
 			} else {
 				OSSleepTicks(OSSecondsToTicks(PING_INTERVAL_SEC));
@@ -43,13 +45,13 @@ static int connection_state_manager_thread(
 
 		} else {
 
-			if (connection_connect("192.168.15.7")) {
-				video_log_write("connected");
+			if (connection_connect(HOST_IP_ADDRESS)) {
+				video_log_printf("connected");
 			} else {
-				video_log_write("failed to connect");
+				video_log_printf("failed to connect");
 			}
 
-			OSSleepTicks(OSMillisecondsToTicks(500));
+			OSSleepTicks(OSMillisecondsToTicks(1000));
 
 		}
 	}

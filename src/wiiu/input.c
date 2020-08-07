@@ -22,7 +22,7 @@ static uint8_t rumble_pattern[120];
 
 static void wpad_connection_callback(WPADChan chan, int32_t status)
 {
-	video_log_write(
+	video_log_printf(
 		"UPDATED WPAD[%d] = STATUS %d",
 		(int)chan,
 		(int)status

@@ -3,6 +3,7 @@
 #include "utils.h"
 
 
+#define HOST_IP_ADDRESS            "192.168.15.7"
 #define PING_PACKET_PORT           (7171)
 #define INPUT_PACKET_PORT          (7172)
 #define INPUT_FEEDBACK_PACKET_PORT (7173)

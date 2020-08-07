@@ -1,0 +1,7 @@
+wiiu video log fix
+thread safety revision
+core features revision
+zui revision
+zui on wiiu
+zui enter text box
+zui revision / optimization

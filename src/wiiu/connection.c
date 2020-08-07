@@ -94,7 +94,7 @@ static bool setup_socket(
     );
 
     if (*sock < 0) {
-    	video_log_write("failed to start socket");
+    	video_log_printf("failed to start socket");
     	return false;
     }
 
@@ -114,10 +114,11 @@ static bool setup_socket(
 static bool setup_recv_socket(int* sock, int proto, unsigned short port)
 {
 	struct sockaddr_in addr;
-	setup_socket(sock, proto, &addr, NULL, port);
+	if (!setup_socket(sock, proto, &addr, NULL, port))
+		return false;
 
 	if (bind(*sock, (const struct sockaddr*)&addr, sizeof addr) != 0) {
-		video_log_write("failed to bind socket");
+		video_log_printf("failed to bind socket");
 		return false;
 	}
 
@@ -127,10 +128,11 @@ static bool setup_recv_socket(int* sock, int proto, unsigned short port)
 static bool setup_send_socket(int* sock, int proto, const char* ip, unsigned short port)
 {
 	struct sockaddr_in addr;
-	setup_socket(sock, proto, &addr, ip, port);
+	if (!setup_socket(sock, proto, &addr, ip, port))
+		return false;
 
 	if (connect(*sock, (struct sockaddr*)&addr, sizeof addr) != 0) {
-		video_log_write("socket connect failed");
+		video_log_printf("socket connect failed");
 		return false;
 	}	
 	

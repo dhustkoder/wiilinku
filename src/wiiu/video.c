@@ -9,8 +9,11 @@
 #include <coreinit/spinlock.h>
 #include "video.h"
 
-#define LOG_INITIAL_Y_POS (10)
-#define LOG_INITIAL_X_POS (10)
+
+#define LOG_LINE_LENGTH (64)
+#define LOG_NLINES      (4)
+#define LOG_SCR_X       (4)
+#define LOG_SCR_Y       (6)
 
 
 static MEMHeapHandle heap;
@@ -19,7 +22,7 @@ static uint32_t bufsz_drc;
 static unsigned char* buf_tv;
 static unsigned char* buf_drc;
 static char fmt_buffer[512];
-static int log_y = 0;
+static char log_buffer[LOG_NLINES][LOG_LINE_LENGTH];
 static OSSpinLock log_lock;
 
 
@@ -44,7 +47,6 @@ bool video_init(void)
 	OSScreenClearBufferEx(SCREEN_TV, 0x000000FF);
 	OSScreenClearBufferEx(SCREEN_DRC, 0x000000FF);
 
-	log_y = LOG_INITIAL_Y_POS;
 
 	OSInitSpinLock(&log_lock);
 
@@ -61,14 +63,21 @@ void video_render_clear(void)
 {
 	OSScreenClearBufferEx(SCREEN_TV, 0x000000FF);
 	OSScreenClearBufferEx(SCREEN_DRC, 0x000000FF);
+
 }
 
 void video_render_flip(void)
-{
+{	
+	OSAcquireSpinLock(&log_lock);
+	for (int i = 0; i < LOG_NLINES; ++i)
+		video_render_text(LOG_SCR_X, LOG_SCR_Y + i, log_buffer[i]);
+
 	DCFlushRange(buf_tv, bufsz_tv);
 	DCFlushRange(buf_drc, bufsz_drc);
 	OSScreenFlipBuffersEx(SCREEN_TV);
 	OSScreenFlipBuffersEx(SCREEN_DRC);
+
+	OSReleaseSpinLock(&log_lock);
 }
 
 void video_render_text(int x, int y, const char* str)
@@ -76,6 +85,7 @@ void video_render_text(int x, int y, const char* str)
 	OSScreenPutFontEx(SCREEN_TV, x, y, str);
 	OSScreenPutFontEx(SCREEN_DRC, x, y, str);
 }
+
 void video_render_text_aligned(int x, int y, const char* str)
 {
 	char* nwidx;
@@ -92,41 +102,28 @@ void video_render_text_aligned(int x, int y, const char* str)
 }
 
 
-
-#define FMT_BUFFER_WRITE(fmt) {                \
-	va_list utils__va_list;                    \
-	va_start(utils__va_list, fmt);             \
-	vsprintf(fmt_buffer, fmt, utils__va_list); \
-	va_end(utils__va_list);                    \
-}
-
 void video_render_text_fmt(int x, int y, const char* fmt, ...)
 {
-	FMT_BUFFER_WRITE(fmt);
+	FMT_STR_VARGS(fmt_buffer, fmt, fmt);
 	video_render_text(x, y, fmt_buffer);
 }
 
 void video_render_text_aligned_fmt(int x, int y, const char* fmt, ...)
 {
-	FMT_BUFFER_WRITE(fmt);
+	FMT_STR_VARGS(fmt_buffer, fmt, fmt);
 	video_render_text_aligned(x, y, fmt_buffer);
 }
 
-void video_log_write(const char* fmt, ...)
+void video_log_printf(const char* fmt, ...)
 {
 	OSAcquireSpinLock(&log_lock);
 
-	FMT_BUFFER_WRITE(fmt);
-	
-	video_render_text_aligned(LOG_INITIAL_X_POS, log_y, fmt_buffer);
-
-	++log_y;
-
-	if (log_y > (LOG_INITIAL_Y_POS + 3)) {
-		log_y = LOG_INITIAL_Y_POS;
+	for (int i = 0; i < LOG_NLINES - 1; ++i) {
+		strcpy(log_buffer[i], log_buffer[i + 1]);
 	}
+
+	FMT_STR_VARGS(log_buffer[LOG_NLINES - 1], fmt, fmt);
 
 	OSReleaseSpinLock(&log_lock);
 }
 
-#undef FMT_BUFFER_WRITE

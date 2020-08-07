@@ -2,6 +2,7 @@
 #define WIILINKU_UTILS_H_
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 
 #ifdef _WIN32
@@ -29,6 +30,19 @@
                      ((((x)&0x000000FF00000000)>>8) |(((x)&0x00000000FF000000)<<8)))
 
 #endif
+
+
+
+#define FMT_STR_VARGS(targetbuf, fmt, lastarg) {        \
+	va_list utils__va_list;                             \
+	va_start(utils__va_list, lastarg);                  \
+	vsprintf(targetbuf, fmt, utils__va_list);           \
+	va_end(utils__va_list);                             \
+}
+
+
+
+
 
 struct vec2i {
 	int x, y;
