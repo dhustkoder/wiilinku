@@ -1,4 +1,3 @@
-wiiu video log fix
 thread safety revision
 core features revision
 zui revision

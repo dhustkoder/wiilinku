@@ -12,18 +12,16 @@ static CRITICAL_SECTION log_internal_write_crit_sect;
 
 void log_internal_write(enum log_level lvl, const char* fmt, ...)
 {
-
 	EnterCriticalSection(&log_internal_write_crit_sect); 
 
-	va_list valist;
-	va_start(valist, fmt);
-	int written = vsprintf(log_internal_buffer, fmt, valist);
-	va_end(valist);
+	int written;
+
+	FMT_STR_VARGS_EX(log_internal_buffer, sizeof(log_internal_buffer), written, fmt, fmt);
+
 	log_internal_buffer[written++] = '\n';
 	WriteConsoleA(stdout_handle, log_internal_buffer, written, NULL, NULL);
 
 	LeaveCriticalSection(&log_internal_write_crit_sect);
-
 }
 
 

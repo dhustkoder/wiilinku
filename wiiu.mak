@@ -18,13 +18,14 @@ include $(DEVKITPRO)/wut/share/wut_rules
 # INCLUDES is a list of directories containing header files
 #-------------------------------------------------------------------------------
 ifeq ($(BUILD_TYPE),Release)
-BUILD		:=	wiiu_release_build
+OUTPUTDIR    := wiiu_release_build
 else
 BUILD_TYPE   = Debug
-BUILD       := wiiu_debug_build
+OUTPUTDIR    := wiiu_debug_build
 endif
 
-TARGET		:=	$(BUILD)/wiilinku
+BUILD       :=  $(OUTPUTDIR)
+TARGET		:=	$(OUTPUTDIR)/wiilinku
 SOURCES		:=	src src/wiiu
 DATA		:=	data
 INCLUDES	:=	src src/wiiu
@@ -32,12 +33,13 @@ INCLUDES	:=	src src/wiiu
 #-------------------------------------------------------------------------------
 # options for code generation
 #-------------------------------------------------------------------------------
+
 CFLAGS   := -D__WIIU__ -D__WUT__ -DWIIUPCX_CLIENT \
             $(INCLUDE) $(MACHDEP) -Wall -Wextra  -ffunction-sections
 ifeq ($(BUILD_TYPE),Release)
-CFLAGS	 +=	-g  -O2 
+CFLAGS	 +=	-O2 -DNDEBUG
 else
-CFLAGS   += -O0 -g -DDEBUG
+CFLAGS   += -O0 -g -DDEBUG -DWIILINKU_DEBUG
 endif
 
 CXXFLAGS := $(CFLAGS)
@@ -116,7 +118,7 @@ $(BUILD):
 #-------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).rpx $(TARGET).elf
+	@rm -fr $(BUILD)/*.o $(BUILD)/*.d
 
 #-------------------------------------------------------------------------------
 else

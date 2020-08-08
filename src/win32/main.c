@@ -16,32 +16,25 @@ static HANDLE connection_input_manager_thread_handle;
 static DWORD WINAPI connection_state_manager_thread(LPVOID lp)
 {
 	__pragma(warning(suppress:4100)) lp;
-
-	DWORD ping_timer = GetTickCount();
+	
 
 	while (!terminate_threads) {
 
 		if (connection_is_connected()) {
 
-			if ((GetTickCount() - ping_timer) >= (PING_INTERVAL_SEC * 1000)) {
-				if (!connection_ping_client()) {
-					gui_set_connection_status(false, NULL);
-				} else {
-					Sleep(PING_INTERVAL_SEC * 1000);
-				}
-				ping_timer = GetTickCount();
-			}
+			Sleep(PING_INTERVAL_SEC * 1000);
+
+			if (!connection_ping_client()) 
+				gui_set_connection_status(false, NULL);	
+
 
 		} else {
 
-			if (connection_wait_client()) {
+			if (connection_wait_client()) 
 				gui_set_connection_status(true, connection_get_client_address());
-			} else {
-				Sleep(1000);
-			}
 
 		}
-
+		
 	}
 
 	return 0;
@@ -58,11 +51,10 @@ static DWORD WINAPI connection_input_manger_thread(LPVOID lp)
 			Sleep(1000);
 			continue;
 		}
-
+		
 		if (connection_recv_input_packet(&input)) {
 			input_update(&input);
 		}
-		
 	}
 
 
@@ -93,6 +85,12 @@ static bool init_platform(void)
 
 	if (!gui_init())
 		return false;
+
+	#ifdef WIILINKU_DEBUG
+	log_info("you are running a debug build");
+	#else
+	log_info("you are running a release build");
+	#endif
 
 	for (int i = 0; i < sizeof(thandles)/sizeof(thandles[0]); ++i) {
 		*thandles[i] = CreateThread(
@@ -157,7 +155,6 @@ int CALLBACK WinMain(
 
 	while (event != GUI_EVENT_WM_DESTROY) {
 		frametime = GetTickCount();
-
 
 		event = gui_update();
 		++framecnt;

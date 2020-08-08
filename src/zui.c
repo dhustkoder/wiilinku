@@ -1,7 +1,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
-#include <assert.h>
 #include "utils.h"
 #include "zui.h"
 
@@ -354,7 +353,7 @@ static bool need_render = false;
 
 static void* workbuffer_idx_to_ptr(unsigned long long idx)
 {
-	assert(workbuffer != NULL);
+	WLU_ASSERT(workbuffer != NULL);
 	return (((unsigned char*)workbuffer) + idx);
 }
 
@@ -363,7 +362,7 @@ static unsigned long long workbuffer_size_add(struct vec2i size)
 	unsigned long long idx = workbuffer_byte_cnt;
 	workbuffer_byte_cnt += size.x * size.y * 3;
 	workbuffer = realloc(workbuffer, workbuffer_byte_cnt);
-	assert(workbuffer != NULL);
+	WLU_ASSERT(workbuffer != NULL);
 	return idx;
 }
 
@@ -462,7 +461,7 @@ static struct vec2i get_text_required_buffer_size(const char* str)
 
 bool zui_init(const char* title, void* framebuffer, int w, int h)
 {
-	assert(title != NULL && framebuffer != NULL && w >= 480 && h >= 360);
+	WLU_ASSERT(title != NULL && framebuffer != NULL && w >= 480 && h >= 360);
 
 	targetbuffer = framebuffer;
 	targetbuffer_size.x = w;
@@ -498,7 +497,7 @@ void zui_term(void)
 
 int zui_static_text_create(int winid, const char* str, struct vec2i origin)
 {
-	assert(
+	WLU_ASSERT(
 		buffer_objs_cnt < MAX_BUFFER_OBJECTS && 
 		str != NULL &&
 		origin.x >= 0 &&
@@ -539,7 +538,7 @@ int zui_dynamic_text_create(
 	int max_lines
 )
 {
-	assert(
+	WLU_ASSERT(
 		buffer_objs_cnt < MAX_BUFFER_OBJECTS &&
 		max_line_len > 0 &&
 		max_lines > 0
@@ -564,12 +563,12 @@ int zui_dynamic_text_create(
 
 void zui_dynamic_text_set(int obj_id, const char* str, struct vec2i origin)
 {
-	assert(obj_id < buffer_objs_cnt && str != NULL && origin.x >= 0 && origin.y >= 0);
+	WLU_ASSERT(obj_id < buffer_objs_cnt && str != NULL && origin.x >= 0 && origin.y >= 0);
 
 	struct buffer_object* obj = &buffer_objs[obj_id];
 
 	const struct vec2i size = get_text_required_buffer_size(str);
-	// assert(obj->rect.size.x >= size.x && obj->rect.size.y >= size.y);
+	WLU_ASSERT(obj->rect.size.x >= size.x && obj->rect.size.y >= size.y);
 
 	obj->rect.coord = (struct vec2i) {
 		.x = origin.x - (size.x / 2),
@@ -585,16 +584,19 @@ void zui_dynamic_text_set(int obj_id, const char* str, struct vec2i origin)
 	);
 }
 
-void zui_update(void)
+bool zui_update(void)
 {
-
+	return need_render;
 }
 
 void zui_render(void)
 {
-	if (!need_render)
-		return;
-
+	for (int y = VBORDER_H; y < targetbuffer_size.y - VBORDER_H; ++y) {
+		for (int x = HBORDER_W; x < targetbuffer_size.x - HBORDER_W; ++x) {
+			((struct rgb24*)targetbuffer)[x + (y * targetbuffer_size.x)] =
+				(struct rgb24){ 0x00, 0x00, 0x00 };
+		}
+	}
 	for (int i = 0; i < buffer_objs_cnt; ++i) {
 		struct buffer_object* obj = &buffer_objs[i];
 		pixel_copy(
@@ -604,8 +606,6 @@ void zui_render(void)
 			obj->rect
 		);
 	}
-
-	need_render = false;
 }
 
 

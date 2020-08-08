@@ -3,6 +3,49 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <assert.h>
+
+/* debug / assert */
+#ifdef WIILINKU_DEBUG
+
+#ifdef _WIN32
+#include "win32/log.h"
+
+#define WLU_ASSERT(cond) {                                     \
+	if (!(cond)) {                                             \
+		log_error("ASSERT FAILED %s:%s", __FILE__, __LINE__);  \
+		__debugbreak();                                        \
+	}                                                          \
+}
+
+
+#elif defined(__WIIU__)
+
+#include <coreinit/thread.h>
+#include "wiiu/video.h"
+
+#define WLU_ASSERT(cond) {                                           \
+	if (!(cond)) {                                                   \
+		video_log_printf("ASSERT FAILED %s:%s", __FILE__, __LINE__); \
+		OSSleepTicks(OSSecondsToTicks(10));                          \
+	}                                                                \
+}
+
+#endif /* _WIN32 / __WIIU__ */
+
+#else
+
+#define WLU_ASSERT(...) ((void)0)
+
+#endif /* DEBUG */
+
+
+/* compiler utils */
+#ifdef _WIN32
+#define WLU_UNUSED(x) ((void)x)
+#elif defined(__WIIU__)
+#define WLU_UNUSED(x) ((void)x)
+#endif
 
 
 #ifdef _WIN32
@@ -29,19 +72,22 @@
                      ((((x)&0x0000FF0000000000)>>24)|(((x)&0x0000000000FF0000)<<24))| \
                      ((((x)&0x000000FF00000000)>>8) |(((x)&0x00000000FF000000)<<8)))
 
-#endif
+#endif /* _WIN32 / __WIIU__ */
 
 
-
-#define FMT_STR_VARGS(targetbuf, fmt, lastarg) {        \
-	va_list utils__va_list;                             \
-	va_start(utils__va_list, lastarg);                  \
-	vsprintf(targetbuf, fmt, utils__va_list);           \
-	va_end(utils__va_list);                             \
+#define FMT_STR_VARGS_EX(targetbuf, maxsize, written, fmt, lastarg) {     \
+	va_list utils__va_list;                                               \
+	va_start(utils__va_list, lastarg);                                    \
+	written = vsprintf(targetbuf, fmt, utils__va_list);                   \
+	WLU_ASSERT(written < maxsize);                                        \
+	va_end(utils__va_list);                                               \
 }
 
-
-
+#define FMT_STR_VARGS(targetbuf, maxsize, fmt, lastarg) {               \
+	unsigned utils__written;                                            \
+	WLU_UNUSED(utils__written);                                         \
+	FMT_STR_VARGS_EX(targetbuf, maxsize, utils__written, fmt, lastarg); \
+}
 
 
 struct vec2i {

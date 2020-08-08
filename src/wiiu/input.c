@@ -13,6 +13,7 @@
 
 static VPADReadError verror;
 static VPADStatus vpad;
+static VPADStatus last_vpad;
 static KPADStatus kpads[4];
 static volatile uint8_t kpad_connected[4] = { 0, 0, 0, 0 };
 static volatile uint8_t wiimote_flags = 0;
@@ -72,11 +73,20 @@ void input_term(void)
 	VPADShutdown();
 }
 
-void input_update(void)
-{
-	last_input.flags = wiimote_flags|INPUT_PACKET_FLAG_GAMEPAD;
-	
+bool input_update(struct input_packet* input)
+{	
 	VPADRead(VPAD_CHAN_0, &vpad, 1, &verror);
+	
+	if (verror != VPAD_READ_SUCCESS) {
+	
+		if (verror != VPAD_READ_NO_SAMPLES) {
+			video_log_printf("VPADRead failed, reason: %d", verror);
+		}
+	
+		return false;
+	}
+
+	memcpy(&last_vpad, &vpad, sizeof(VPADStatus));
 
 	for (int i = 0; i < 4; ++i) {
 		if (kpad_connected[i]) {
@@ -84,6 +94,7 @@ void input_update(void)
 		}
 	}
 
+	last_input.flags = wiimote_flags|INPUT_PACKET_FLAG_GAMEPAD;
 	const VPADVec2D ls = vpad.leftStick;
 	const VPADVec2D rs = vpad.rightStick;
 	
@@ -98,6 +109,8 @@ void input_update(void)
 			last_input.wiimotes[i].btns = kpads[i].hold;
 		}
 	}
+
+	return input_fetch(input);
 }
 
 void input_update_feedback(const struct input_feedback_packet* fb)
@@ -116,10 +129,22 @@ void input_update_feedback(const struct input_feedback_packet* fb)
 	}
 }
 
-
-void input_fetch(struct input_packet* input)
+bool input_fetch(struct input_packet* input)
 {
-	memcpy(input, &last_input, sizeof *input);
+	if (memcmp(input, &last_input, sizeof last_input) != 0) {
+		memcpy(input, &last_input, sizeof *input);
+		return true;
+	}
+	
+	return false;
+}
+
+
+void input_fetch_vpad(VPADStatus* target)
+{
+	uint32_t trigger = target->hold&(last_vpad.hold^target->hold);
+	memcpy(target, &last_vpad, sizeof(VPADStatus));
+	target->trigger = trigger;
 }
 
 

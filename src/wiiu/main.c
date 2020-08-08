@@ -14,41 +14,40 @@ static const char* logo_ascii =
 " \\ \\      / / (_) (_) | |     (_)  _ __   | | __ | | | |   \n"
 "  \\ \\ /\\ / /  | | | | | |     | | | '_ \\  | |/ / | | | | \n"
 "   \\ V  V /   | | | | | |___  | | | | | | |   <  | |_| |    \n"
-"    \\_/\\_/    |_| |_| |_____| |_| |_| |_| |_|\\_\\  \\___/ \n"
+"    \\_/\\_/    |_| |_| |_____| |_| |_| |_| |_|\\_\\  \\___/ v0.1\n"
 "                                                             \n";
                                                                        
 
 
 static volatile bool terminate_threads = false;
+static volatile const char* entered_ip = NULL;
 
 
 static int connection_state_manager_thread(
 	__attribute__((unused)) int  a,
-	__attribute__((unused)) char** b
+	__attribute__((unused)) const char** b
 )
 {
-
-	OSTick ping_timer = OSGetSystemTick();
-
 	while (!terminate_threads) {
 
 		if (connection_is_connected()) {
+			
+			OSSleepTicks(OSSecondsToTicks(PING_INTERVAL_SEC));
 
-			if (OSTicksToSeconds((ping_timer - OSGetSystemTick())) >= PING_INTERVAL_SEC) {
-				if (!connection_ping_host()) {
-					video_log_printf("disconnected");
-				}
-				ping_timer = OSGetSystemTick();
-			} else {
-				OSSleepTicks(OSSecondsToTicks(PING_INTERVAL_SEC));
+			if (!connection_ping_host()) {
+				video_log_printf("disconnected");
 			}
 
 		} else {
 
-			if (connection_connect(HOST_IP_ADDRESS)) {
-				video_log_printf("connected");
-			} else {
-				video_log_printf("failed to connect");
+			if (entered_ip != NULL) {
+				video_log_printf("trying to connect...");
+				if (connection_connect((char*)entered_ip)) {
+					video_log_printf("connected");
+				} else {
+					video_log_printf("failed to connect");
+					entered_ip = NULL;
+				}
 			}
 
 			OSSleepTicks(OSMillisecondsToTicks(1000));
@@ -62,20 +61,21 @@ static int connection_state_manager_thread(
 
 static int input_manager_thread(
 	__attribute__((unused)) int  a,
-	__attribute__((unused)) char** b
+	__attribute__((unused)) const char** b
 )
 {
 	struct input_feedback_packet feedback;
 	struct input_packet input;
 
 	while (!terminate_threads) {
-		input_update();
-		input_fetch(&input);
+		input_update(&input);
 
-		connection_send_input_packet(&input);
+		if (connection_is_connected()) {
+			connection_send_input_packet(&input);
 
-		if (connection_receive_input_feedback_packet(&feedback)) {
-			input_update_feedback(&feedback);
+			if (connection_receive_input_feedback_packet(&feedback)) {
+				input_update_feedback(&feedback);
+			}
 		}
 
 		OSSleepTicks(OSMillisecondsToTicks(6));
@@ -96,18 +96,22 @@ static bool platform_init(void)
 	if (!connection_init())
 		return false;
 
-
+	#ifdef WIILINKU_DEBUG
+	video_log_printf("you are running a debug build");
+	#else
+	video_log_printf("you are running a release build");
+	#endif
 
 	OSRunThread(
 		OSGetDefaultThread(0),
-		(OSThreadEntryPointFn)input_manager_thread,
+		input_manager_thread,
 		0,
 		NULL
 	);
 
 	OSRunThread(
 		OSGetDefaultThread(2),
-		(OSThreadEntryPointFn)connection_state_manager_thread,
+		connection_state_manager_thread,
 		0,
 		NULL
 	);
@@ -135,23 +139,63 @@ int main(void)
 	if (!platform_init())
 		return EXIT_FAILURE;
 	
-	struct input_packet input;
-	memset(&input, 0, sizeof input);
+	char ipbuf[24] = "192.168.000.000\0";
+	const int ip_cur_pos_table[12] = { 0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14 };
+	int ip_cur_pos = 0;
+
+	VPADStatus vpad;
+	memset(&vpad, 0, sizeof(VPADStatus));
 
 	for (;;) {
-		input_fetch(&input);
+		input_fetch_vpad(&vpad);
 
-		if (input.gamepad.btns&WIIU_GAMEPAD_BTN_HOME || input.wiimotes[0].btns&WIIMOTE_BTN_HOME)
+		if (vpad.trigger&VPAD_BUTTON_HOME)
 			break;
+
+		if (!connection_is_connected()) {
+			if (vpad.trigger&VPAD_BUTTON_RIGHT && ip_cur_pos < 11) {
+				++ip_cur_pos;
+			} else if (vpad.trigger&VPAD_BUTTON_LEFT && ip_cur_pos > 0) {
+				--ip_cur_pos;
+			}
+
+			if (vpad.trigger&VPAD_BUTTON_UP && ipbuf[ip_cur_pos_table[ip_cur_pos]] < '9') {
+				++ipbuf[ip_cur_pos_table[ip_cur_pos]];
+			} else if (vpad.trigger&VPAD_BUTTON_DOWN && ipbuf[ip_cur_pos_table[ip_cur_pos]] > '0') {
+				--ipbuf[ip_cur_pos_table[ip_cur_pos]];
+			}
+
+			if (vpad.trigger&VPAD_BUTTON_PLUS) {
+				entered_ip = ipbuf;
+			}
+		}
 
 		video_render_clear();
 		video_render_text(0, 0, logo_ascii);
-		video_render_text_aligned_fmt(35, 10,
-			"GAMEPAD BTNS: %.8X\n"
-			"WIIMOTE[0] BTNS: %.8X\n",
-			input.gamepad.btns,
-			input.wiimotes[0].btns
+
+		
+		video_render_text_fmt(0, 6, "Enter IP: %s", ipbuf);
+		video_render_text(10 + ip_cur_pos_table[ip_cur_pos], 7, "^");
+		video_render_text_aligned(0, 8,
+			"EXIT      = HOME\n"
+			"CONNECT   = +\n"
+			"IP SELECT = DPAD LEFT RIGHT UP DOWN\n"
 		);
+
+		video_render_text_aligned_fmt(45, 8,
+			" -- GAMEPAD --\n"
+			"BTNS: %.8X\n"
+			"RSX: %.2f\n"
+			"RSY: %.2f\n"
+			"LSX: %.2f\n"
+			"LSY: %.2f\n",
+			vpad.hold,
+			vpad.rightStick.x,
+			vpad.rightStick.y,
+			vpad.leftStick.x,
+			vpad.leftStick.y
+		);
+
 		video_render_flip();
 	}
 

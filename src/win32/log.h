@@ -12,9 +12,10 @@ enum log_level {
 };
 
 
+
 extern void log_term(void);
 extern bool log_init(void);
-extern void log_internal_write(enum log_level lvl, const char* fmt, ...);
+extern void log_internal_write(enum log_level lvl, const char* fmt, ...); /* thread-safe */
 
 
 #define log_info(...) log_internal_write(LOG_LEVEL_INFO, __VA_ARGS__)

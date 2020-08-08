@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="0.1">
+  <name>WiiLinkU</name>
+  <coder>dhustkoder</coder>
+  <version>0.1</version>
+  <release_date>20200808000000</release_date>
+  <short_description>Use Gamepad as XBOX Controllers on PC</short_description>
+  <long_description>
+    Connects the Gamepad to PC as XBOX Controller
+    DESKTOP Application: 
+      https://github.com/dhustkoder/wiilinku/releases/tag/v0.1
+    Bug Report and Contributions:
+      https://github.com/dhustkoder/wiilinku
+
+    Planned Features:
+    - Game Streaming to WiiU TV/Gamepad (if possible)
+    - Save configurations
+    - Graphical UI on WiiU / Better GUI on Desktops
+    - Button Mapping
+  </long_description>
+</app>

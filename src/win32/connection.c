@@ -166,7 +166,7 @@ static bool init_send_socket(SOCKET* sock, int proto, const char* ip, short port
 	return true;
 }
 
-static bool fill_local_host_and_port(void)
+static bool fill_local_network_ip(void)
 {
 	char hostname[80];
 
@@ -249,7 +249,7 @@ bool connection_init(void)
         return false;
     }
 
-	if (!fill_local_host_and_port()) 
+	if (!fill_local_network_ip()) 
 		return false;
 
 	return true;

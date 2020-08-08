@@ -6,8 +6,8 @@
 #include "gui.h"
 
 
-#define GUI_WIDTH  (480)
-#define GUI_HEIGHT (360)
+#define GUI_WIDTH  (640)
+#define GUI_HEIGHT (480)
 
 static HWND hwnd_mainwin;
 static WNDCLASS wc;
@@ -37,6 +37,7 @@ static BITMAPINFO bmi = {
 static uint8_t framebuffer[GUI_WIDTH * GUI_HEIGHT * 3];
 
 static int connection_status_text_id;
+static CRITICAL_SECTION zui_crit_sect;
 
 
 static void window_size_update(void)
@@ -48,6 +49,18 @@ static void window_size_update(void)
 }
 
 
+static void flush_buffer(void)
+{
+	BeginPaint(hwnd_mainwin, &paintstruct);
+
+	StretchDIBits(hdc_mainwin, 0, 0, win_width, win_height,
+	              0, 0, GUI_WIDTH, GUI_HEIGHT,
+	              framebuffer, &bmi, DIB_RGB_COLORS, SRCCOPY);
+
+
+	EndPaint(hwnd_mainwin, &paintstruct);
+}
+
 
 static LRESULT window_proc_clbk(HWND hwnd,
                                 UINT msg,
@@ -55,14 +68,16 @@ static LRESULT window_proc_clbk(HWND hwnd,
                                 LPARAM lParam)
 {
 	switch (msg) {
-		case WM_SIZE:
-			window_size_update();
-			break;
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			wm_destroy_request = 1;
 			return WM_DESTROY;
-	}
+		case WM_SIZE:
+			window_size_update();
+		case WM_PAINT:
+			flush_buffer();
+			break;
+	}	
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
@@ -107,6 +122,8 @@ bool gui_init(void)
 		1
 	);
 
+	InitializeCriticalSectionAndSpinCount(&zui_crit_sect, ~(DWORD)0);
+
 	gui_set_connection_status(false, NULL);
 
 	return true;
@@ -114,16 +131,18 @@ bool gui_init(void)
 
 void gui_term(void)
 {
+	DeleteCriticalSection(&zui_crit_sect);
 	zui_term();
 	DestroyWindow(hwnd_mainwin);
 }
 
 void gui_set_connection_status(bool connected, const char* clientaddr)
 {
+	EnterCriticalSection(&zui_crit_sect);
 	if (!connected) {
 		zui_dynamic_text_set(
 			connection_status_text_id,
-			"CONNECTION STATUS DISCONNECTED",
+			"NOT CONNECTED",
 			(struct vec2i) {
 				GUI_WIDTH / 2,
 				GUI_HEIGHT / 2
@@ -131,7 +150,7 @@ void gui_set_connection_status(bool connected, const char* clientaddr)
 		);
 	} else {
 		char buf[64];
-		sprintf(buf, "CONNECTION STATUS CONNECTED TO: %s", clientaddr);
+		sprintf(buf, "!! CONNECTED TO: %s !!", clientaddr);
 		zui_dynamic_text_set(
 			connection_status_text_id,
 			buf,
@@ -141,6 +160,7 @@ void gui_set_connection_status(bool connected, const char* clientaddr)
 			}
 		);
 	}
+	LeaveCriticalSection(&zui_crit_sect);
 }
 
 gui_event_t gui_update(void)
@@ -152,18 +172,13 @@ gui_event_t gui_update(void)
 		DispatchMessage(&msg_mainwin);
 
 
-	zui_update();
-
-	BeginPaint(hwnd_mainwin, &paintstruct);
-
-	zui_render();
-
-	StretchDIBits(hdc_mainwin, 0, 0, win_width, win_height,
-	              0, 0, GUI_WIDTH, GUI_HEIGHT,
-	              framebuffer, &bmi, DIB_RGB_COLORS, SRCCOPY);
-
-
-	EndPaint(hwnd_mainwin, &paintstruct);
+	EnterCriticalSection(&zui_crit_sect);
+	if (zui_update()) {
+		zui_render();
+		flush_buffer();
+	}
+	
+	LeaveCriticalSection(&zui_crit_sect);
 
 	return 0;
 }
