@@ -73,7 +73,7 @@ void input_term(void)
 	VPADShutdown();
 }
 
-bool input_update(struct input_packet* input)
+void input_update(struct input_packet* input)
 {	
 	VPADRead(VPAD_CHAN_0, &vpad, 1, &verror);
 	
@@ -82,8 +82,6 @@ bool input_update(struct input_packet* input)
 		if (verror != VPAD_READ_NO_SAMPLES) {
 			video_log_printf("VPADRead failed, reason: %d", verror);
 		}
-	
-		return false;
 	}
 
 	memcpy(&last_vpad, &vpad, sizeof(VPADStatus));
@@ -110,7 +108,7 @@ bool input_update(struct input_packet* input)
 		}
 	}
 
-	return input_fetch(input);
+	input_fetch(input);
 }
 
 void input_update_feedback(const struct input_feedback_packet* fb)
@@ -129,14 +127,9 @@ void input_update_feedback(const struct input_feedback_packet* fb)
 	}
 }
 
-bool input_fetch(struct input_packet* input)
+void input_fetch(struct input_packet* input)
 {
-	if (memcmp(input, &last_input, sizeof last_input) != 0) {
-		memcpy(input, &last_input, sizeof *input);
-		return true;
-	}
-	
-	return false;
+	memcpy(input, &last_input, sizeof *input);
 }
 
 

@@ -1,3 +1,4 @@
+optimize net usage at input sending
 thread safety revision
 core features revision
 zui revision
