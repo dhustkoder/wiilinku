@@ -25,14 +25,20 @@ static DWORD WINAPI connection_state_manager_thread(LPVOID lp)
 
 			Sleep(PING_INTERVAL_SEC * 1000);
 
-			if (!connection_ping_client()) 
-				gui_set_connection_status(false, NULL);	
+			if (!connection_ping_client()) {
+				gui_set_connection_status(false, NULL);
+				PlaySound(TEXT("DeviceDisconnect"), NULL, SND_ALIAS|SND_ASYNC);
+
+
+			}
 
 
 		} else {
 
-			if (connection_wait_client()) 
+			if (connection_wait_client()) {
 				gui_set_connection_status(true, connection_get_client_address());
+				PlaySound(TEXT("DeviceConnect"), NULL, SND_ALIAS|SND_ASYNC);
+			}
 
 		}
 		

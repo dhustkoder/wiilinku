@@ -7,6 +7,7 @@
 #include "connection.h"
 #include "input.h"
 #include "video.h"
+#include "utils.h"
 
 
 static const char* logo_ascii =
@@ -14,7 +15,7 @@ static const char* logo_ascii =
 " \\ \\      / / (_) (_) | |     (_)  _ __   | | __ | | | |   \n"
 "  \\ \\ /\\ / /  | | | | | |     | | | '_ \\  | |/ / | | | | \n"
 "   \\ V  V /   | | | | | |___  | | | | | | |   <  | |_| |    \n"
-"    \\_/\\_/    |_| |_| |_____| |_| |_| |_| |_|\\_\\  \\___/ v0.1\n"
+"    \\_/\\_/    |_| |_| |_____| |_| |_| |_| |_|\\_\\  \\___/ " WIILINKU_VER_STR"\n"
 "                                                             \n";
                                                                        
 
