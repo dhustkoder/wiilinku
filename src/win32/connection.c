@@ -1,10 +1,11 @@
 #include <WinSock2.h>
+#include <iphlpapi.h>
 #include <assert.h>
 #include "log.h"
 #include "connection.h"
 
 
-static struct in_addr local_network_ip;
+static char local_ip_buf[24] = "000.000.000.000\0";
 static struct sockaddr_in client_addr;
 
 
@@ -13,6 +14,7 @@ static SOCKET ping_client_socket = INVALID_SOCKET;
 static SOCKET input_socket = INVALID_SOCKET;
 static SOCKET input_feedback_socket = INVALID_SOCKET;
 static bool connected = false;
+
 
 
 
@@ -166,23 +168,72 @@ static bool init_send_socket(SOCKET* sock, int proto, const char* ip, short port
 	return true;
 }
 
-static bool fill_local_network_ip(void)
+static bool setup_local_ip_buf(void)
 {
-	char hostname[80];
+	PIP_ADAPTER_INFO ip_info_buffer = malloc(sizeof(*ip_info_buffer));
+	PIP_ADAPTER_INFO itr = NULL;
+	PIP_ADAPTER_INFO found = NULL;
+	ULONG size = sizeof *ip_info_buffer;
+	ULONG err;
+	err = GetAdaptersInfo(ip_info_buffer, &size);
 
-	if (gethostname(hostname, sizeof(hostname)) != 0) {
-		log_debug("failed to gethostname: %d", WSAGetLastError());
+	if (err != NO_ERROR) {
+		ip_info_buffer = realloc(ip_info_buffer, size);
+		err = GetAdaptersInfo(ip_info_buffer, &size);
+		if (err != NO_ERROR) {
+			free(ip_info_buffer);
+			return false;
+		}
+	}
+
+	log_debug(" --- Searching For Local Network Ip Address ---");
+	itr = ip_info_buffer;
+	while (itr != NULL) {
+		log_debug("---------------------------------------------");
+		log_debug("name: %s", itr->AdapterName);
+		log_debug("desc: %s", itr->Description);
+		log_debug("type: %u", itr->Type);
+		log_debug("addr: %s", itr->IpAddressList.IpAddress.String);
+		log_debug("gateway: %s", itr->GatewayList.IpAddress);
+		log_debug("---------------------------------------------");
+		if (itr->Type == IF_TYPE_IEEE80211 || itr->Type == MIB_IF_TYPE_ETHERNET) {
+			if (strcmp(itr->IpAddressList.IpAddress.String, "0.0.0.0") != 0) {
+				found = itr;
+				break;
+			}
+		}
+		itr = itr->Next;
+	}
+	log_debug("--- Search Ended ---");
+
+	if (found == NULL) {
+		log_debug("local ip address / adapter not found");
+		free(ip_info_buffer);
 		return false;
 	}
 
-	struct hostent *phe = gethostbyname(hostname);
-	if (phe == NULL || phe->h_addr_list == NULL || phe->h_addr_list[0] == NULL) {
-		log_debug("failed to gethostbyname");
-		return false;
+	/* fill in the ip string buffer backwards to keep left 0s */
+	const size_t local_ip_buf_len = strlen(local_ip_buf);
+	const size_t src_ip_buf_len = strlen(found->IpAddressList.IpAddress.String);
+	char* dest_itr = local_ip_buf + local_ip_buf_len;
+	const char* src_itr = found->IpAddressList.IpAddress.String + src_ip_buf_len;
+	while (dest_itr > &local_ip_buf[0]) {
+		--src_itr;
+		--dest_itr;
+
+		if (*src_itr == '.') {
+			while (*dest_itr != '.')
+				--dest_itr;
+			--src_itr;
+			--dest_itr;
+		}
+
+		*dest_itr = *src_itr;
 	}
 
-	memcpy(&local_network_ip, phe->h_addr_list[0], sizeof(struct in_addr));
-
+	log_debug("local_ip_buf result: %s", local_ip_buf);
+	
+	free(ip_info_buffer);
 	return true;
 }
 
@@ -249,7 +300,7 @@ bool connection_init(void)
         return false;
     }
 
-	if (!fill_local_network_ip()) 
+	if (!setup_local_ip_buf()) 
 		return false;
 
 	return true;
@@ -272,7 +323,7 @@ void connection_term(void)
 
 const char* connection_get_host_address(void)
 {
-	return inet_ntoa(local_network_ip);
+	return local_ip_buf;
 }
 
 const char* connection_get_client_address(void)

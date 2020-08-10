@@ -77,6 +77,12 @@ static bool init_platform(void)
 	if (!log_init())
 		return false;
 
+	#ifdef WIILINKU_DEBUG
+	log_info("Hello :), you are running a debug build");
+	#else
+	log_info("Hello :), you are running a release build");
+	#endif
+
 	if (!connection_init())
 		return false;
 
@@ -85,12 +91,6 @@ static bool init_platform(void)
 
 	if (!gui_init())
 		return false;
-
-	#ifdef WIILINKU_DEBUG
-	log_info("you are running a debug build");
-	#else
-	log_info("you are running a release build");
-	#endif
 
 	for (int i = 0; i < sizeof(thandles)/sizeof(thandles[0]); ++i) {
 		*thandles[i] = CreateThread(

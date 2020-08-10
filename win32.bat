@@ -20,7 +20,7 @@ REM LDFLAGS SETUP
 set INCLUDE_LIBS_DEBUG=/LIBPATH:"externals\ViGEmClient\lib\debug\x64"
 set INCLUDE_LIBS_RELEASE=/LIBPATH:"externals\ViGEmClient\lib\release\x64"
 set LIBS=user32.lib gdi32.lib winmm.lib ws2_32.lib setupapi.lib ViGEmClient.lib^
-         ole32.lib
+         ole32.lib Iphlpapi.lib
 
 set LIBS_DEBUG=%LIBS% msvcrtd.lib vcruntimed.lib
 set LIBS_RELEASE=%LIBS% msvcrt.lib vcruntime.lib
