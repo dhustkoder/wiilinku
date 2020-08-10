@@ -5,15 +5,20 @@
 #include <stdarg.h>
 #include <assert.h>
 
+
+
+
 /* debug / assert */
 #ifdef WIILINKU_DEBUG
+
+#define WIILINKU_VER_STR "v0.1-debug"
 
 #ifdef _WIN32
 #include "win32/log.h"
 
 #define WLU_ASSERT(cond) {                                     \
 	if (!(cond)) {                                             \
-		log_error("ASSERT FAILED %s:%s", __FILE__, __LINE__);  \
+		log_error("ASSERT FAILED %s:%d", __FILE__, __LINE__);  \
 		__debugbreak();                                        \
 	}                                                          \
 }
@@ -34,6 +39,8 @@
 #endif /* _WIN32 / __WIIU__ */
 
 #else
+
+#define WIILINKU_VER_STR "v0.1-release"
 
 #define WLU_ASSERT(...) ((void)0)
 

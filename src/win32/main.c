@@ -6,6 +6,7 @@
 #include "connection.h"
 #include "input.h"
 #include "log.h"
+#include "error.h"
 
 
 static volatile bool terminate_threads = false;
@@ -78,9 +79,9 @@ static bool init_platform(void)
 		return false;
 
 	#ifdef WIILINKU_DEBUG
-	log_info("Hello :), you are running a debug build");
+	log_info("Hello :), you are running a DEBUG build\n\n\n");
 	#else
-	log_info("Hello :), you are running a release build");
+	log_info("Hello :), you are running a RELEASE build\n\n\n");
 	#endif
 
 	if (!connection_init())
@@ -144,8 +145,15 @@ int CALLBACK WinMain(
 	__pragma(warning(suppress:4100)) lpCmdLine;
 	__pragma(warning(suppress:4100)) nCmdShow;
 
-	if (!init_platform())
+	if (!init_platform()) {
+		MessageBox(
+		  NULL,
+		  get_last_error(),
+		  "WiiLinkU Error",
+		  MB_ICONERROR
+		);
 		return EXIT_FAILURE;
+	}
 
 	gui_event_t event = GUI_EVENT_NONE;
 
@@ -163,7 +171,7 @@ int CALLBACK WinMain(
 			Sleep(33 - (GetTickCount() - frametime));
 
 		if ((GetTickCount() - lasttick) >= 1000)  {
-			log_debug("MAIN THREAD FPS: %ld", framecnt);
+			log_debug("UI THREAD FPS: %ld", framecnt);
 			framecnt = 0;
 			lasttick = GetTickCount();
 		}

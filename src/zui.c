@@ -459,7 +459,7 @@ static struct vec2i get_text_required_buffer_size(const char* str)
 
 
 
-bool zui_init(const char* title, void* framebuffer, int w, int h)
+void zui_init(const char* title, void* framebuffer, int w, int h)
 {
 	WLU_ASSERT(title != NULL && framebuffer != NULL && w >= 480 && h >= 360);
 
@@ -486,8 +486,6 @@ bool zui_init(const char* title, void* framebuffer, int w, int h)
 	}
 
 	zui_static_text_create(0, title, (struct vec2i){ .x = w / 2, VBORDER_H + 14});
-
-	return true;
 }
 
 void zui_term(void)

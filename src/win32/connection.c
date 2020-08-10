@@ -3,6 +3,7 @@
 #include <assert.h>
 #include "log.h"
 #include "connection.h"
+#include "error.h"
 
 
 static char local_ip_buf[24] = "000.000.000.000\0";
@@ -170,19 +171,21 @@ static bool init_send_socket(SOCKET* sock, int proto, const char* ip, short port
 
 static bool setup_local_ip_buf(void)
 {
+	bool ret = false;
+	ULONG err;
 	PIP_ADAPTER_INFO ip_info_buffer = malloc(sizeof(*ip_info_buffer));
 	PIP_ADAPTER_INFO itr = NULL;
 	PIP_ADAPTER_INFO found = NULL;
 	ULONG size = sizeof *ip_info_buffer;
-	ULONG err;
+	
 	err = GetAdaptersInfo(ip_info_buffer, &size);
 
 	if (err != NO_ERROR) {
 		ip_info_buffer = realloc(ip_info_buffer, size);
 		err = GetAdaptersInfo(ip_info_buffer, &size);
 		if (err != NO_ERROR) {
-			free(ip_info_buffer);
-			return false;
+			set_last_error("GetAdaptersInfo failed");
+			goto Lret;
 		}
 	}
 
@@ -204,12 +207,11 @@ static bool setup_local_ip_buf(void)
 		}
 		itr = itr->Next;
 	}
-	log_debug("--- Search Ended ---");
+	log_debug("-------------- Search Ended --------------------");
 
 	if (found == NULL) {
-		log_debug("local ip address / adapter not found");
-		free(ip_info_buffer);
-		return false;
+		set_last_error("local ip address or adapter not found");
+		goto Lret;
 	}
 
 	/* fill in the ip string buffer backwards to keep left 0s */
@@ -217,6 +219,7 @@ static bool setup_local_ip_buf(void)
 	const size_t src_ip_buf_len = strlen(found->IpAddressList.IpAddress.String);
 	char* dest_itr = local_ip_buf + local_ip_buf_len;
 	const char* src_itr = found->IpAddressList.IpAddress.String + src_ip_buf_len;
+
 	while (dest_itr > &local_ip_buf[0]) {
 		--src_itr;
 		--dest_itr;
@@ -233,8 +236,10 @@ static bool setup_local_ip_buf(void)
 
 	log_debug("local_ip_buf result: %s", local_ip_buf);
 	
+	ret = true;
+Lret:
 	free(ip_info_buffer);
-	return true;
+	return ret;
 }
 
 bool connection_wait_client(void)
@@ -296,7 +301,7 @@ bool connection_init(void)
 {
     WSADATA wsa_data;
     if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
-        log_debug("WSAStartup Error");
+        set_last_error("WSAStartup Error");
         return false;
     }
 

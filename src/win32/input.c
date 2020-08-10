@@ -3,6 +3,7 @@
 #include "input.h"
 #include "connection.h"
 #include "log.h"
+#include "error.h"
 
 
 static struct input_packet last_input;
@@ -54,16 +55,16 @@ bool input_init(void)
 	VIGEM_ERROR err = vigem_connect(vigem_pad.client);
 
 	if (err != VIGEM_ERROR_NONE) {
-		log_info("vigem_connect error = %X\n", err);
-		return false;
+		log_error("vigem_connect error = %X\n", err);
+		goto Lretfail;
 	}
 
 	vigem_pad.target = vigem_target_x360_alloc();
 	err = vigem_target_add(vigem_pad.client, vigem_pad.target);
 
 	if (err != VIGEM_ERROR_NONE) {
-		log_info("vigem_target_add error = %X\n", err);
-		return false;
+		log_error("vigem_target_add error = %X\n", err);
+		goto Lretfail;
 	}
 
 	err = vigem_target_x360_register_notification(
@@ -74,14 +75,22 @@ bool input_init(void)
 	);
 
 	if (err != VIGEM_ERROR_NONE) {
-		log_info("vigem_target_x360_register_notification error = %X\n", err);
-		return false;
+		log_error("vigem_target_x360_register_notification error = %X\n", err);
+		goto Lretfail;
 	}
 
 	XUSB_REPORT_INIT(&vigem_pad.report);
 
 
 	return true;
+
+Lretfail:
+	set_last_error(
+		"failed to initialize Input system."
+		"Make sure you've installed ViGEmBus driver."
+	);
+
+	return false;
 }
 
 

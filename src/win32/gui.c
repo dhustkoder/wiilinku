@@ -4,6 +4,7 @@
 #include "log.h"
 #include "zui.h"
 #include "gui.h"
+#include "error.h"
 
 
 #define GUI_WIDTH  (640)
@@ -84,20 +85,22 @@ static LRESULT window_proc_clbk(HWND hwnd,
 
 bool gui_init(void)
 {
+	#define WINNAME "WiiLinkU " WIILINKU_VER_STR
+
 	memset(&wc, 0, sizeof(wc));
 	wc.lpfnWndProc   = window_proc_clbk;
-	wc.lpszClassName = "wiilinku";
+	wc.lpszClassName = WINNAME;
 
 	RegisterClass(&wc);
 
 	hwnd_mainwin = CreateWindowEx(
 			0, wc.lpszClassName,
-			"wiilinku", WS_OVERLAPPEDWINDOW,
+			WINNAME, WS_OVERLAPPEDWINDOW,
 			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 			NULL, NULL, wc.hInstance, NULL);
 
 	if (!hwnd_mainwin) {
-		log_info("Failed to initialize WINDOW HWND");
+		set_last_error("CreateWindowEx failed");
 		return false;
 	}
 
@@ -108,19 +111,11 @@ bool gui_init(void)
 	hdc_mainwin = GetDC(hwnd_mainwin);
 
 	char title_buffer[96];
-	sprintf(title_buffer, "wiilinku - ip %s", connection_get_host_address());
+	sprintf(title_buffer,"HOST IP %s", connection_get_host_address());
 
-	if (!zui_init(title_buffer, framebuffer, GUI_WIDTH, GUI_HEIGHT)) {
-		log_info("failed to initialize Zui");
-		gui_term();
-		return false;
-	}
+	zui_init(title_buffer, framebuffer, GUI_WIDTH, GUI_HEIGHT);
 
-	connection_status_text_id = zui_dynamic_text_create(
-		0,
-		64,
-		1
-	);
+	connection_status_text_id = zui_dynamic_text_create(0, 64, 1);
 
 	InitializeCriticalSectionAndSpinCount(&zui_crit_sect, ~(DWORD)0);
 
