@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include "utils.h"
 
+#define ZUI_WIDTH  (720)
+#define ZUI_HEIGHT (480)
+
 typedef int zui_obj_id_t;
 
 extern void zui_init(void);

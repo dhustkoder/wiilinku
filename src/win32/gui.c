@@ -7,8 +7,6 @@
 #include "error.h"
 
 
-#define GUI_WIDTH  (640)
-#define GUI_HEIGHT (480)
 
 static HWND hwnd_mainwin;
 static WNDCLASS wc;
@@ -22,8 +20,8 @@ static HDC hdc_mainwin;
 static BITMAPINFO bmi = {
 	.bmiHeader = {
 		.biSize = sizeof(BITMAPINFOHEADER),
-		.biWidth = GUI_WIDTH,
-		.biHeight = -GUI_HEIGHT,
+		.biWidth = ZUI_WIDTH,
+		.biHeight = -ZUI_HEIGHT,
 		.biPlanes = 1,
 		.biBitCount = 24,
 		.biCompression = BI_RGB,
@@ -35,7 +33,7 @@ static BITMAPINFO bmi = {
 	}
 };
 
-static uint8_t framebuffer[GUI_WIDTH * GUI_HEIGHT * 3];
+static uint8_t framebuffer[ZUI_WIDTH * ZUI_HEIGHT * 3];
 
 static zui_obj_id_t connection_status_text_id;
 static zui_obj_id_t connection_local_ip_text_id;
@@ -56,7 +54,7 @@ static void flush_buffer(void)
 	BeginPaint(hwnd_mainwin, &paintstruct);
 
 	StretchDIBits(hdc_mainwin, 0, 0, win_width, win_height,
-	              0, 0, GUI_WIDTH, GUI_HEIGHT,
+	              0, 0, ZUI_WIDTH, ZUI_HEIGHT,
 	              framebuffer, &bmi, DIB_RGB_COLORS, SRCCOPY);
 
 
@@ -93,12 +91,20 @@ bool gui_init(void)
 	wc.lpszClassName = TEXT("WiiLinkU " WIILINKU_VER_STR);
 
 	RegisterClass(&wc);
-
-	hwnd_mainwin = CreateWindowEx(
-			0, wc.lpszClassName,
-			wc.lpszClassName, WS_OVERLAPPEDWINDOW,
-			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-			NULL, NULL, wc.hInstance, NULL);
+	
+	hwnd_mainwin = CreateWindowA(
+		wc.lpszClassName,
+		wc.lpszClassName,
+		WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT,
+		CW_USEDEFAULT,
+		ZUI_WIDTH,
+		ZUI_HEIGHT,
+		NULL,
+		NULL,
+		wc.hInstance,
+		NULL
+	);
 
 	if (!hwnd_mainwin) {
 		set_last_error("CreateWindowEx failed");

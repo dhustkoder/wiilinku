@@ -5,8 +5,7 @@
 #include "zui.h"
 
 
-#define ZUI_WIDTH  (640)
-#define ZUI_HEIGHT (480)
+
 #define MAX_ZUI_CMDS      (16)
 #define OBJS_BUFFER_SIZE  (1024)
 
@@ -961,7 +960,7 @@ static void draw_text(
 		memset(
 			dest_orig + y * ZUI_WIDTH,
 			0x11,
-			dest_size.x * sizeof(struct rgb24)
+			dest_size.x * 3
 		);
 	}
 
