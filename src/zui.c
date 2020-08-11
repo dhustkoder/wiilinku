@@ -4,6 +4,12 @@
 #include "utils.h"
 #include "zui.h"
 
+
+#define ZUI_WIDTH  (640)
+#define ZUI_HEIGHT (480)
+#define MAX_ZUI_CMDS      (16)
+#define OBJS_BUFFER_SIZE  (1024)
+
 #define HBORDER_W (16)
 #define HBORDER_H (7)
 
@@ -15,8 +21,8 @@
 #define CHARSET_W (112)
 #define CHARSET_H (21)
 #define CHARS_PER_LINE (CHARSET_W / CHAR_W)
-#define MAX_BUFFER_OBJECTS  (16)
-#define MAX_DYNAMIC_OBJECTS (16)
+
+
 
 
 static const uint8_t hborder_data[] = (
@@ -333,55 +339,139 @@ static const uint8_t charset_data[] = (
 	"\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
 );
 
-struct buffer_object {
-	struct recti rect;
-	unsigned long long buffer_idx;
+
+typedef uint8_t zui_cmd_type;
+enum zui_cmd_id {
+	ZUI_CMD_TYPE_CLEAR,
+	ZUI_CMD_TYPE_DRAW_BORDERS,
+	ZUI_CMD_TYPE_DRAW_TEXT
 };
 
+struct zui_cmd {
+	zui_obj_id_t obj_id;
+	zui_cmd_type type;
+};
 
-static int buffer_objs_cnt;
-static struct buffer_object buffer_objs[MAX_BUFFER_OBJECTS];
+struct text_obj {
+	struct vec2i coord;
+	int max_line_len;
+	int max_lines;
+	char str[];
+};
 
-static unsigned long long workbuffer_byte_cnt = 0;
-static void* workbuffer = NULL;
+static int zui_cmd_cnt = 0;
+static struct zui_cmd zui_cmd_buffer[MAX_ZUI_CMDS];
 
-static struct vec2i targetbuffer_size = { 0, 0 };
-static void* targetbuffer = NULL;
-
-static bool need_render = false;
+static int objs_buffer_size = 0;
+static uint8_t objs_buffer[OBJS_BUFFER_SIZE];
 
 
-static void* workbuffer_idx_to_ptr(unsigned long long idx)
+
+static void zui_cmd_push(zui_obj_id_t id, zui_cmd_type type)
 {
-	WLU_ASSERT(workbuffer != NULL);
-	return (((unsigned char*)workbuffer) + idx);
+	WLU_ASSERT(zui_cmd_cnt < MAX_ZUI_CMDS);
+	zui_cmd_buffer[zui_cmd_cnt].obj_id = id;
+	zui_cmd_buffer[zui_cmd_cnt].type = type;
+	++zui_cmd_cnt;
 }
 
-static unsigned long long workbuffer_size_add(struct vec2i size)
+static void zui_cmd_clear(void)
 {
-	unsigned long long idx = workbuffer_byte_cnt;
-	workbuffer_byte_cnt += size.x * size.y * 3;
-	workbuffer = realloc(workbuffer, workbuffer_byte_cnt);
-	WLU_ASSERT(workbuffer != NULL);
-	return idx;
+	zui_cmd_cnt = 0;
 }
+
+static zui_obj_id_t zui_obj_push(int size)
+{
+	WLU_ASSERT(objs_buffer_size + size <= OBJS_BUFFER_SIZE);
+	zui_obj_id_t id = objs_buffer_size;
+	objs_buffer_size += size;
+	return id;
+}
+
+static void* zui_obj_get(zui_obj_id_t id)
+{
+	WLU_ASSERT(id < objs_buffer_size);
+	return &objs_buffer[id];
+}
+
+static void zui_obj_clear(void)
+{
+	objs_buffer_size = 0;
+}
+
+static struct vec2i get_text_require_buffer_size_ex(int linelen, int lines)
+{
+	const int w =  (linelen * CHAR_W) + linelen;
+	const int h = (lines * CHAR_H) + lines;
+	return (struct vec2i) { .x = w, .y = h };
+}
+
+static struct vec2i get_text_required_buffer_size(const char* str)
+{
+	const int linelen = str_longest_line_len(str);
+	const int lines = 1 + str_chr_cnt(str, '\n');
+	return get_text_require_buffer_size_ex(linelen, lines);
+}
+
+static int get_text_max_str_size(int linelen, int lines)
+{
+	return (linelen * lines) + lines;
+}
+
+static void draw_borders(struct rgb24* dest) 
+{
+	const struct rgb24* hbord = (void*) hborder_data;
+	const struct rgb24* vbord = (void*) vborder_data;
+	const int w = ZUI_WIDTH;
+	const int h = ZUI_HEIGHT;
+
+	for (int i = 0; i < HBORDER_H; ++i) {
+		for (int j = 0; j < w; ++j) {
+			dest[i * w + j] = hbord[(i * HBORDER_W) + (j % HBORDER_W)];
+			dest[((w * h) - HBORDER_H * w) + i * w + j] = hbord[(i * HBORDER_W) + (j % HBORDER_W)];
+		}
+	}
+
+	for (int i = 0; i < h; ++i) {
+		for (int j = 0; j < VBORDER_W; ++j) {
+			dest[i * w + j] = vbord[((i % VBORDER_H) * VBORDER_W) + j];
+			dest[(w - VBORDER_W) + i * w + j] = vbord[((i % VBORDER_H) * VBORDER_W) + j];
+		}
+	}
+}
+
+
 
 static void draw_text(
-	const char* str,
-	const int len,
-	struct rgb24* dest_orig,
-	const struct vec2i dest_size
+	zui_obj_id_t id,
+	struct rgb24* framebuffer
 )
-{
-	need_render = true;
-	
+{	
 	const struct rgb24* cset = (void*)charset_data;
+
+	const struct text_obj* obj = zui_obj_get(id);
+	const size_t len = strlen(obj->str);
 	
+	const struct vec2i dest_size = get_text_required_buffer_size(obj->str);
+	const struct vec2i clean_size = get_text_require_buffer_size_ex(
+		obj->max_line_len, obj->max_lines
+	);
+	struct rgb24* dest_orig = 
+		&framebuffer[obj->coord.y * ZUI_WIDTH + obj->coord.x];
+	
+	const char* str = obj->str;
+
 	int dest_x = 0, dest_y = 0;
 	int idx;
 	char c;
 
-	memset(dest_orig, 0x00, dest_size.x * dest_size.y * 3);
+	for (int y = 0; y < clean_size.y; ++y) {
+		memset(
+			dest_orig + y * ZUI_WIDTH,
+			0x00,
+			dest_size.x * sizeof(struct rgb24)
+		);
+	}
 
 	for (int i = 0; i < len; ++i) {
 		c = str[i];
@@ -413,11 +503,11 @@ static void draw_text(
 			((idx % CHARS_PER_LINE) * CHAR_W)
 		];
 		
-		struct rgb24* dest = dest_orig + (dest_y * dest_size.x) + dest_x;
+		struct rgb24* dest = dest_orig + (dest_y * ZUI_WIDTH) + dest_x;
 
 		for (int cy = 0; cy < CHAR_H; ++cy) {
 			for (int cx = 0; cx < CHAR_W; ++cx) {
-				dest[(cy * dest_size.x) + cx] = src[(cy * CHARSET_W) + cx];
+				dest[(cy * ZUI_WIDTH) + cx] = src[(cy * CHARSET_W) + cx];
 			}
 		}
 
@@ -428,183 +518,70 @@ static void draw_text(
 
 }
 
-static void pixel_copy(
-  struct rgb24* dest,
-  const struct rgb24* src,
-  struct vec2i dest_size,
-  struct recti src_rect
-)
+
+
+void zui_init(void)
 {
-	dest += src_rect.coord.y * dest_size.x + src_rect.coord.x;
-	for (int y = 0; y < src_rect.size.y; ++y) {
-		memcpy(dest, src, src_rect.size.x * 3);
-		dest += dest_size.x;
-		src += src_rect.size.x;
-	}
-}
-
-static struct vec2i get_text_require_buffer_size_ex(int linelen, int lines)
-{
-	const int w =  (linelen * CHAR_W) + linelen;
-	const int h = (lines * CHAR_H) + lines;
-	return (struct vec2i) { .x = w, .y = h };
-}
-
-static struct vec2i get_text_required_buffer_size(const char* str)
-{
-	const int linelen = str_longest_line_len(str);
-	const int lines = 1 + str_chr_cnt(str, '\n');
-	return get_text_require_buffer_size_ex(linelen, lines);
-}
-
-
-
-void zui_init(const char* title, void* framebuffer, int w, int h)
-{
-	WLU_ASSERT(title != NULL && framebuffer != NULL && w >= 480 && h >= 360);
-
-	targetbuffer = framebuffer;
-	targetbuffer_size.x = w;
-	targetbuffer_size.y = h;
-
-	struct rgb24* dest = framebuffer;
-	const struct rgb24* hbord = (void*)hborder_data;
-	const struct rgb24* vbord = (void*)vborder_data;
-	
-	for (int i = 0; i < HBORDER_H; ++i) {
-		for (int j = 0; j < w; ++j) {
-			dest[i * w + j] = hbord[(i * HBORDER_W) + (j % HBORDER_W)];
-			dest[((w * h) - HBORDER_H * w) + i * w + j] = hbord[(i * HBORDER_W) + (j % HBORDER_W)];
-		}
-	}
-
-	for (int i = 0; i < h; ++i) {
-		for (int j = 0; j < VBORDER_W; ++j) {
-			dest[i * w + j] = vbord[((i % VBORDER_H) * VBORDER_W) + j];
-			dest[(w - VBORDER_W) + i * w + j] = vbord[((i % VBORDER_H) * VBORDER_W) + j];
-		}
-	}
-
-	zui_static_text_create(0, title, (struct vec2i){ .x = w / 2, VBORDER_H + 14});
+	zui_cmd_push(0, ZUI_CMD_TYPE_CLEAR);
+	zui_cmd_push(0, ZUI_CMD_TYPE_DRAW_BORDERS);
 }
 
 void zui_term(void)
 {
-	free(workbuffer);
+	zui_cmd_clear();
+	zui_obj_clear();
 }
 
-int zui_static_text_create(int winid, const char* str, struct vec2i origin)
-{
-	WLU_ASSERT(
-		buffer_objs_cnt < MAX_BUFFER_OBJECTS && 
-		str != NULL &&
-		origin.x >= 0 &&
-		origin.y >= 0
-	);
-
-	const int id = buffer_objs_cnt++;
-
-	const struct vec2i size = get_text_required_buffer_size(str);
-
-	const struct vec2i coord = { 
-		.x = origin.x - (size.x / 2), 
-		.y = origin.y - (size.y / 2)
-	};
-
-	buffer_objs[id].rect = (struct recti) {
-		.coord = coord,
-		.size = size
-	};
-
-	buffer_objs[id].buffer_idx = workbuffer_size_add(
-		buffer_objs[id].rect.size
-	);
-
-	draw_text(
-		str,
-		strlen(str),
-		workbuffer_idx_to_ptr(buffer_objs[id].buffer_idx),
-		buffer_objs[id].rect.size
-	);
-
-	return id;
-}
-
-int zui_dynamic_text_create(
-	int winid,
-	int max_line_len,
-	int max_lines
+zui_obj_id_t zui_text_create(
+	int max_line_length,
+	int max_lines,
+	const struct vec2i coord
 )
 {
-	WLU_ASSERT(
-		buffer_objs_cnt < MAX_BUFFER_OBJECTS &&
-		max_line_len > 0 &&
-		max_lines > 0
-	);
-
-	const int id = buffer_objs_cnt++;
-
-	const struct vec2i size = get_text_require_buffer_size_ex(max_line_len, max_lines);
-	const unsigned long long buffer_idx = workbuffer_size_add(size);
-	memset(workbuffer_idx_to_ptr(buffer_idx), 0, size.x * size.y * 3);
-
-	buffer_objs[id] = (struct buffer_object) {
-		.buffer_idx = buffer_idx,
-		.rect = (struct recti) {
-			.coord = {0, 0},
-			.size = size
-		}
-	};
-
+	const int len =  get_text_max_str_size(max_line_length, max_lines) + 1;
+	const zui_obj_id_t id = zui_obj_push(sizeof(struct text_obj) + len);
+	struct text_obj* obj = zui_obj_get(id);
+	obj->coord = coord;
+	obj->max_line_len = max_line_length;
+	obj->max_lines = max_lines;
 	return id;
 }
 
-void zui_dynamic_text_set(int obj_id, const char* str, struct vec2i origin)
+void zui_text_set(const zui_obj_id_t id, const char* str)
 {
-	WLU_ASSERT(obj_id < buffer_objs_cnt && str != NULL && origin.x >= 0 && origin.y >= 0);
-
-	struct buffer_object* obj = &buffer_objs[obj_id];
-
-	const struct vec2i size = get_text_required_buffer_size(str);
-	WLU_ASSERT(obj->rect.size.x >= size.x && obj->rect.size.y >= size.y);
-
-	obj->rect.coord = (struct vec2i) {
-		.x = origin.x - (size.x / 2),
-		.y = origin.y - (size.y / 2)
-	};
-	obj->rect.size = size; // FIXME
-
-	draw_text(
-		str,
-		strlen(str),
-		workbuffer_idx_to_ptr(obj->buffer_idx),
-		size
-	);
+	struct text_obj* obj = zui_obj_get(id);
+	WLU_ASSERT(strlen(str) < get_text_max_str_size(obj->max_line_len, obj->max_lines));
+	strcpy(obj->str, str);
+	zui_cmd_push(id, ZUI_CMD_TYPE_DRAW_TEXT);
 }
 
-bool zui_update(void)
+bool zui_update(struct rgb24* framebuffer)
 {
-	return need_render;
-}
+	int i = 0;
 
-void zui_render(void)
-{
-	for (int y = VBORDER_H; y < targetbuffer_size.y - VBORDER_H; ++y) {
-		for (int x = HBORDER_W; x < targetbuffer_size.x - HBORDER_W; ++x) {
-			((struct rgb24*)targetbuffer)[x + (y * targetbuffer_size.x)] =
-				(struct rgb24){ 0x00, 0x00, 0x00 };
+	for (; i < zui_cmd_cnt; ++i) {
+		switch (zui_cmd_buffer[i].type) {
+		case ZUI_CMD_TYPE_CLEAR:
+			memset(framebuffer, 0x00, sizeof(struct rgb24) * ZUI_WIDTH * ZUI_HEIGHT);
+			break;
+		case ZUI_CMD_TYPE_DRAW_BORDERS:
+			draw_borders(framebuffer);
+			break;
+		case ZUI_CMD_TYPE_DRAW_TEXT:
+			draw_text(zui_cmd_buffer[i].obj_id, framebuffer);
+			break;
 		}
 	}
-	for (int i = 0; i < buffer_objs_cnt; ++i) {
-		struct buffer_object* obj = &buffer_objs[i];
-		pixel_copy(
-			targetbuffer,
-			workbuffer_idx_to_ptr(obj->buffer_idx),
-			targetbuffer_size,
-			obj->rect
-		);
+
+	if (i > 0) {
+		zui_cmd_clear();
+		return true;
 	}
+
+	return false;
+
 }
+
 
 
 

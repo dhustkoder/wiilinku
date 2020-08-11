@@ -3,18 +3,17 @@
 #include <stdint.h>
 #include "utils.h"
 
+typedef int zui_obj_id_t;
 
-extern void zui_init(const char* title, void* framebuffer, int w, int h);
+extern void zui_init(void);
 extern void zui_term(void);
-extern int zui_static_text_create(int winid, const char* str, struct vec2i origin);
-extern bool zui_update(void);
-extern void zui_render(void);
-extern int zui_dynamic_text_create(
-	int winid,
-	int max_line_len,
-	int max_lines
+extern zui_obj_id_t zui_text_create(
+	int max_line_length,
+	int max_lines,
+	struct vec2i coord
 );
-extern void zui_dynamic_text_set(int obj_id, const char* str, struct vec2i origin);
+extern void zui_text_set(zui_obj_id_t id, const char* str);
+extern bool zui_update(struct rgb24* dest);
 
 
 

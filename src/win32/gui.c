@@ -37,7 +37,8 @@ static BITMAPINFO bmi = {
 
 static uint8_t framebuffer[GUI_WIDTH * GUI_HEIGHT * 3];
 
-static int connection_status_text_id;
+static zui_obj_id_t connection_status_text_id;
+static zui_obj_id_t connection_local_ip_text_id;
 static CRITICAL_SECTION zui_crit_sect;
 
 
@@ -83,6 +84,8 @@ static LRESULT window_proc_clbk(HWND hwnd,
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+
+
 bool gui_init(void)
 {
 	#define WINNAME "WiiLinkU " WIILINKU_VER_STR
@@ -110,16 +113,15 @@ bool gui_init(void)
 
 	hdc_mainwin = GetDC(hwnd_mainwin);
 
-	char title_buffer[96];
-	sprintf(title_buffer,"HOST IP %s", connection_get_host_address());
+	zui_init();
 
-	zui_init(title_buffer, framebuffer, GUI_WIDTH, GUI_HEIGHT);
-
-	connection_status_text_id = zui_dynamic_text_create(0, 64, 1);
+	connection_local_ip_text_id = zui_text_create(64, 1, (struct vec2i){ 50, 16 });
+	connection_status_text_id = zui_text_create(33, 1, (struct vec2i){ 50, 32 });
 
 	InitializeCriticalSectionAndSpinCount(&zui_crit_sect, ~(DWORD)0);
 
 	gui_set_connection_status(false, NULL);
+	gui_set_connection_local_ip(NULL);
 
 	return true;
 }
@@ -135,27 +137,33 @@ void gui_set_connection_status(bool connected, const char* clientaddr)
 {
 	EnterCriticalSection(&zui_crit_sect);
 	if (!connected) {
-		zui_dynamic_text_set(
+		zui_text_set(
 			connection_status_text_id,
-			"NOT CONNECTED",
-			(struct vec2i) {
-				GUI_WIDTH / 2,
-				GUI_HEIGHT / 2
-			}
+			"CONNECTION STATUS IS NOT CONNECTED"
 		);
 	} else {
 		char buf[64];
-		sprintf(buf, "!! CONNECTED TO: %s !!", clientaddr);
-		zui_dynamic_text_set(
-			connection_status_text_id,
-			buf,
-			(struct vec2i) {
-				GUI_WIDTH / 2,
-				GUI_HEIGHT / 2
-			}
-		);
+		sprintf(buf, "CONNECTION STATUS IS CONNECTED TO: %s", clientaddr);
+		zui_text_set(connection_status_text_id, buf);
 	}
 	LeaveCriticalSection(&zui_crit_sect);
+}
+
+void gui_set_connection_local_ip(const char* ip)
+{
+	if (ip == NULL) {
+		zui_text_set(
+			connection_local_ip_text_id,
+			"GETTING LOCAL IP..."
+		);
+	} else {
+		char buf[64];
+		sprintf(buf, "LOCAL IP IS %s", ip);
+		zui_text_set(
+			connection_local_ip_text_id,
+			buf
+		);
+	}
 }
 
 gui_event_t gui_update(void)
@@ -168,8 +176,7 @@ gui_event_t gui_update(void)
 
 
 	EnterCriticalSection(&zui_crit_sect);
-	if (zui_update()) {
-		zui_render();
+	if (zui_update((void*)framebuffer)) {
 		flush_buffer();
 	}
 	

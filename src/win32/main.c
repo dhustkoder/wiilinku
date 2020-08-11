@@ -99,6 +99,8 @@ static bool init_platform(void)
 	if (!gui_init())
 		return false;
 
+	gui_set_connection_local_ip(connection_get_host_address());
+
 	for (int i = 0; i < sizeof(thandles)/sizeof(thandles[0]); ++i) {
 		*thandles[i] = CreateThread(
 			NULL,
