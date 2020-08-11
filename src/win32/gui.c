@@ -87,18 +87,16 @@ static LRESULT window_proc_clbk(HWND hwnd,
 
 
 bool gui_init(void)
-{
-	#define WINNAME "WiiLinkU " WIILINKU_VER_STR
-
+{ 
 	memset(&wc, 0, sizeof(wc));
 	wc.lpfnWndProc   = window_proc_clbk;
-	wc.lpszClassName = WINNAME;
+	wc.lpszClassName = TEXT("WiiLinkU " WIILINKU_VER_STR);
 
 	RegisterClass(&wc);
 
 	hwnd_mainwin = CreateWindowEx(
 			0, wc.lpszClassName,
-			WINNAME, WS_OVERLAPPEDWINDOW,
+			wc.lpszClassName, WS_OVERLAPPEDWINDOW,
 			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 			NULL, NULL, wc.hInstance, NULL);
 
@@ -116,7 +114,7 @@ bool gui_init(void)
 	zui_init();
 
 	connection_local_ip_text_id = zui_text_create(64, 1, (struct vec2i){ 50, 16 });
-	connection_status_text_id = zui_text_create(33, 1, (struct vec2i){ 50, 32 });
+	connection_status_text_id = zui_text_create(64, 1, (struct vec2i){ 50, 32 });
 
 	InitializeCriticalSectionAndSpinCount(&zui_crit_sect, ~(DWORD)0);
 
@@ -139,11 +137,11 @@ void gui_set_connection_status(bool connected, const char* clientaddr)
 	if (!connected) {
 		zui_text_set(
 			connection_status_text_id,
-			"CONNECTION STATUS IS NOT CONNECTED"
+			"Connection status: Waiting For Client"
 		);
 	} else {
 		char buf[64];
-		sprintf(buf, "CONNECTION STATUS IS CONNECTED TO: %s", clientaddr);
+		sprintf(buf, "Connection Status: Connected to %s", clientaddr);
 		zui_text_set(connection_status_text_id, buf);
 	}
 	LeaveCriticalSection(&zui_crit_sect);
@@ -151,19 +149,21 @@ void gui_set_connection_status(bool connected, const char* clientaddr)
 
 void gui_set_connection_local_ip(const char* ip)
 {
+	EnterCriticalSection(&zui_crit_sect);
 	if (ip == NULL) {
 		zui_text_set(
 			connection_local_ip_text_id,
-			"GETTING LOCAL IP..."
+			"Getting local IP..."
 		);
 	} else {
 		char buf[64];
-		sprintf(buf, "LOCAL IP IS %s", ip);
+		sprintf(buf, "Your PC IP: %s", ip);
 		zui_text_set(
 			connection_local_ip_text_id,
 			buf
 		);
 	}
+	LeaveCriticalSection(&zui_crit_sect);
 }
 
 gui_event_t gui_update(void)
@@ -174,13 +174,12 @@ gui_event_t gui_update(void)
 	while (PeekMessageA(&msg_mainwin, hwnd_mainwin, 0, 0, PM_REMOVE))
 		DispatchMessage(&msg_mainwin);
 
-
 	EnterCriticalSection(&zui_crit_sect);
-	if (zui_update((void*)framebuffer)) {
-		flush_buffer();
-	}
-	
+	const bool redraw = zui_update((void*)framebuffer);
 	LeaveCriticalSection(&zui_crit_sect);
+
+	if (redraw)
+		flush_buffer();
 
 	return 0;
 }
