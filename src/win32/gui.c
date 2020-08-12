@@ -180,12 +180,12 @@ gui_event_t gui_update(void)
 	while (PeekMessageA(&msg_mainwin, hwnd_mainwin, 0, 0, PM_REMOVE))
 		DispatchMessage(&msg_mainwin);
 
-	EnterCriticalSection(&zui_crit_sect);
-	const bool redraw = zui_update((void*)framebuffer);
-	LeaveCriticalSection(&zui_crit_sect);
-
-	if (redraw)
+	if (zui_update()) {
+		EnterCriticalSection(&zui_crit_sect);
+		zui_render((void*)framebuffer);
+		LeaveCriticalSection(&zui_crit_sect);
 		flush_buffer();
+	}
 
 	return 0;
 }

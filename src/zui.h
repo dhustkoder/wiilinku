@@ -16,7 +16,8 @@ extern zui_obj_id_t zui_text_create(
 	struct vec2i coord
 );
 extern void zui_text_set(zui_obj_id_t id, const char* str);
-extern bool zui_update(struct rgb24* dest);
+extern bool zui_update();
+extern void zui_render(struct rgb24* dest);
 
 
 

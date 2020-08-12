@@ -1036,14 +1036,18 @@ void zui_text_set(const zui_obj_id_t id, const char* str)
 	zui_cmd_push(id, ZUI_CMD_TYPE_DRAW_TEXT);
 }
 
-bool zui_update(struct rgb24* framebuffer)
+bool zui_update(void)
 {
-	int i = 0;
+	return zui_cmd_cnt > 0;
+}
 
-	for (; i < zui_cmd_cnt; ++i) {
+
+void zui_render(struct rgb24* framebuffer)
+{
+	for (int i = 0; i < zui_cmd_cnt; ++i) {
 		switch (zui_cmd_buffer[i].type) {
 		case ZUI_CMD_TYPE_CLEAR:
-			memset(framebuffer, 0x11, sizeof(struct rgb24) * ZUI_WIDTH * ZUI_HEIGHT);
+			memset(framebuffer, 0x11, 3 * ZUI_WIDTH * ZUI_HEIGHT);
 			break;
 		case ZUI_CMD_TYPE_DRAW_BORDERS:
 			draw_borders(framebuffer);
@@ -1054,13 +1058,7 @@ bool zui_update(struct rgb24* framebuffer)
 		}
 	}
 
-	if (i > 0) {
-		zui_cmd_clear();
-		return true;
-	}
-
-	return false;
-
+	zui_cmd_clear();
 }
 
 
