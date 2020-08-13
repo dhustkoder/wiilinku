@@ -59,7 +59,7 @@ bool platform_init(void)
 	SDL_RenderPresent(renderer);
 	return true;
 
-Lfreetexture:
+
 	SDL_DestroyTexture(texture);
 Lfreerenderer:
 	SDL_DestroyRenderer(renderer);
@@ -125,11 +125,11 @@ int main(void)
 	int tcnt_inc[5] =  { 1024, 1024 * 2, 1024 * 4, 1024 * 8, 1024 * 16 };
 	zui_init();
 	zui_obj_id_t text_ip_id    = zui_text_create(addr, (struct vec2i){24, 44});
-	zui_obj_id_t text_hello_id = zui_text_create("WiiLinkU: Hello SDL2", (struct vec2i){24, 24});
 	for (int i = 0; i < 5; ++i) {
 		sprintf(tbuf, "%u", tcnt_vals[i]);
 		zui_tcnt_strs[i] = zui_text_create(tbuf, (struct vec2i){ 320, 16 + i * 10});
 	}
+	zui_obj_id_t text_hello_id = zui_text_create("WiiLinkU: Hello SDL2", (struct vec2i){24, 24});
 
 	while (update_events()) {
 

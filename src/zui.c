@@ -981,6 +981,19 @@ static int get_text_max_str_size(int linelen, int lines)
 	return (linelen * lines) + lines;
 }
 
+static void clean_rect(struct recti rect, struct rgb24* fb)
+{
+	for (int i = 0; i < rect.size.y; ++i) {
+		const int offset = ((rect.coord.y + i) * ZUI_WIDTH) + rect.coord.x;
+		memset(&fb[offset], 0x11, rect.size.x * 3);
+	}
+}
+
+static void clean_buffer(struct rgb24* fb)
+{
+	memset(fb, 0x11, ZUI_WIDTH * ZUI_HEIGHT * 3);
+}
+
 static void draw_borders(struct rgb24* dest) 
 {
 	const struct rgb24* hbord = (void*) hborder_data;
@@ -1003,8 +1016,6 @@ static void draw_borders(struct rgb24* dest)
 	}
 }
 
-
-
 static void draw_text(
 	zui_obj_id_t id,
 	struct rgb24* framebuffer
@@ -1026,15 +1037,8 @@ static void draw_text(
 
 	int dest_x = 0, dest_y = 0;
 
-	if (obj->dirty_rect.size.x || obj->dirty_rect.size.y) {
-		for (int y = 0; y < obj->dirty_rect.size.y; ++y) {
-			memset(
-				&framebuffer[((obj->dirty_rect.coord.y + y) * ZUI_WIDTH) + obj->dirty_rect.coord.x],
-				0x11,
-				obj->dirty_rect.size.x * 3
-			);
-		}
-	}
+	if (obj->dirty_rect.size.x || obj->dirty_rect.size.y)
+		clean_rect(obj->dirty_rect, framebuffer);
 
 	obj->dirty_rect.coord = obj->coord;
 	obj->dirty_rect.size = dest_size;
@@ -1071,7 +1075,6 @@ static void draw_text(
 		if (dest_x >= dest_size.x)
 			dest_x = 0;
 	}
-
 }
 
 
@@ -1125,7 +1128,7 @@ void zui_render(struct rgb24* framebuffer)
 	for (int i = 0; i < cmd_cnt; ++i) {
 		switch (commands[i].type) {
 			case ZUI_CMD_TYPE_CLEAR:
-				memset(framebuffer, 0x11, 3 * ZUI_WIDTH * ZUI_HEIGHT);
+				clean_buffer(framebuffer);
 				break;
 			case ZUI_CMD_TYPE_DRAW_BORDERS:
 				draw_borders(framebuffer);
