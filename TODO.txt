@@ -1,7 +1,4 @@
-optimize net usage at input sending
-thread safety revision
-core features revision
-zui revision
-zui on wiiu
-zui enter text box
-zui revision / optimization
+zui input responses
+zui render on wiiu
+sdl2 port
+

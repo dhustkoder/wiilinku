@@ -5,10 +5,6 @@
 #include "zui.h"
 
 
-
-#define MAX_ZUI_CMDS      (16)
-#define OBJS_BUFFER_SIZE  (1024)
-
 #define HBORDER_W (16)
 #define HBORDER_H (7)
 
@@ -20,8 +16,6 @@
 #define CHARSET_W (128)
 #define CHARSET_H (64)
 #define CHARS_PER_LINE (CHARSET_W / CHAR_W)
-
-
 
 
 static const uint8_t hborder_data[] = (
@@ -848,50 +842,111 @@ struct zui_cmd {
 };
 
 struct text_obj {
+	struct recti dirty_rect; /* do u feel lucky, punk? */
 	struct vec2i coord;
-	int max_line_len;
-	int max_lines;
 	char str[];
 };
 
-static int zui_cmd_cnt = 0;
-static struct zui_cmd zui_cmd_buffer[MAX_ZUI_CMDS];
+static int cmd_cnt = 0;
+static struct zui_cmd commands[ZUI_MAX_COMMANDS];
+
+static int objs_idxs_cnt = 0;
+static int objs_idxs[ZUI_MAX_OBJS];
 
 static int objs_buffer_size = 0;
-static uint8_t objs_buffer[OBJS_BUFFER_SIZE];
-
+static uint8_t objs_buffer[ZUI_OBJS_BUFFER_MAX_SIZE];
 
 
 static void zui_cmd_push(zui_obj_id_t id, zui_cmd_type type)
 {
-	WLU_ASSERT(zui_cmd_cnt < MAX_ZUI_CMDS);
-	zui_cmd_buffer[zui_cmd_cnt].obj_id = id;
-	zui_cmd_buffer[zui_cmd_cnt].type = type;
-	++zui_cmd_cnt;
+	WLU_ASSERT(cmd_cnt < ZUI_MAX_COMMANDS);
+	commands[cmd_cnt].obj_id = id;
+	commands[cmd_cnt].type = type;
+	++cmd_cnt;
 }
 
 static void zui_cmd_clear(void)
 {
-	zui_cmd_cnt = 0;
-}
-
-static zui_obj_id_t zui_obj_push(int size)
-{
-	WLU_ASSERT(objs_buffer_size + size <= OBJS_BUFFER_SIZE);
-	zui_obj_id_t id = objs_buffer_size;
-	objs_buffer_size += size;
-	return id;
+	cmd_cnt = 0;
 }
 
 static void* zui_obj_get(zui_obj_id_t id)
 {
-	WLU_ASSERT(id < objs_buffer_size);
-	return &objs_buffer[id];
+	WLU_ASSERT(id < objs_idxs_cnt);
+	return objs_buffer + objs_idxs[id];
+}
+
+static zui_obj_id_t zui_obj_push(int size)
+{
+	if ((objs_buffer_size + size % 2) != 0)
+		size += 1;
+
+	WLU_ASSERT(objs_buffer_size + size <= ZUI_OBJS_BUFFER_MAX_SIZE);
+	WLU_ASSERT(objs_idxs_cnt < ZUI_MAX_OBJS);
+	zui_obj_id_t id = objs_idxs_cnt++;
+	objs_idxs[id] = objs_buffer_size;
+	objs_buffer_size += size;
+	memset(zui_obj_get(id), 0, size);
+
+	return id;
+}
+
+static void zui_obj_resize(zui_obj_id_t id, int new_size)
+{
+	WLU_ASSERT(id < objs_idxs_cnt);
+
+
+	const int obj_index = objs_idxs[id];
+
+	/* 
+		last obj in buffer:
+			expand/shrink buffer size
+	*/
+	if (id == objs_idxs_cnt - 1) {
+		const int old_size = objs_buffer_size - obj_index;
+		int size_diff = new_size - old_size;
+		
+		if (((objs_buffer_size + size_diff) % 2) != 0)
+			size_diff += 1;
+
+		objs_buffer_size += size_diff;
+
+		WLU_ASSERT(objs_buffer_size < ZUI_OBJS_BUFFER_MAX_SIZE);
+
+		return;
+	}
+
+	/* 
+		NOT last obj in buffer:
+			move adjacent data forward/backwards
+			set adjacent objs_idxs to new values
+	*/
+
+	const int next_obj_index = objs_idxs[id + 1];
+	const int old_size = next_obj_index - obj_index;
+	int size_diff = new_size - old_size;
+	if (((objs_buffer_size + size_diff) % 2) != 0)
+		size_diff += 1;
+
+	WLU_ASSERT((objs_buffer_size + size_diff) < ZUI_OBJS_BUFFER_MAX_SIZE);
+
+	memmove(
+		objs_buffer + next_obj_index + size_diff,
+		objs_buffer + next_obj_index,
+		objs_buffer_size - next_obj_index
+	);
+
+	for (int i = id + 1; i < objs_idxs_cnt; ++i) {
+		objs_idxs[i] += size_diff;
+	}
+
+	objs_buffer_size += size_diff;
 }
 
 static void zui_obj_clear(void)
 {
 	objs_buffer_size = 0;
+	objs_idxs_cnt = 0;
 }
 
 static struct vec2i get_text_require_buffer_size_ex(int linelen, int lines)
@@ -944,27 +999,32 @@ static void draw_text(
 {	
 	const struct rgb24* cset = (void*)charset_data;
 
-	const struct text_obj* obj = zui_obj_get(id);
+	struct text_obj* obj = zui_obj_get(id);
 	const size_t len = strlen(obj->str);
 
 	const struct vec2i dest_size = get_text_required_buffer_size(obj->str);
-	const struct vec2i clean_size = get_text_require_buffer_size_ex(
-			obj->max_line_len, obj->max_lines
-			);
-	struct rgb24* dest_orig = 
-		&framebuffer[obj->coord.y * ZUI_WIDTH + obj->coord.x];
+
+	struct rgb24* dest_orig = &framebuffer[
+		(obj->coord.y * ZUI_WIDTH) + 
+		obj->coord.x
+	];
 
 	const char* str = obj->str;
 
 	int dest_x = 0, dest_y = 0;
 
-	for (int y = 0; y < clean_size.y; ++y) {
-		memset(
-				dest_orig + y * ZUI_WIDTH,
+	if (obj->dirty_rect.size.x || obj->dirty_rect.size.y) {
+		for (int y = 0; y < obj->dirty_rect.size.y; ++y) {
+			memset(
+				&framebuffer[((obj->dirty_rect.coord.y + y) * ZUI_WIDTH) + obj->dirty_rect.coord.x],
 				0x11,
-				dest_size.x * 3
-		      );
+				obj->dirty_rect.size.x * 3
+			);
+		}
 	}
+
+	obj->dirty_rect.coord = obj->coord;
+	obj->dirty_rect.size = dest_size;
 
 	for (int i = 0; i < len; ++i) {
 		char c = str[i];
@@ -1016,38 +1076,41 @@ void zui_term(void)
 }
 
 zui_obj_id_t zui_text_create(
-	int max_line_length,
-	int max_lines,
+	const char* str,
 	const struct vec2i coord
 )
 {
-	const int len =  get_text_max_str_size(max_line_length, max_lines) + 1;
+	const int len =  strlen(str) + 1;
 	const zui_obj_id_t id = zui_obj_push(sizeof(struct text_obj) + len);
 	struct text_obj* obj = zui_obj_get(id);
 	obj->coord = coord;
-	obj->max_line_len = max_line_length;
-	obj->max_lines = max_lines;
+	strcpy(obj->str, str);
+	zui_cmd_push(id, ZUI_CMD_TYPE_DRAW_TEXT);
 	return id;
 }
 
 void zui_text_set(const zui_obj_id_t id, const char* str)
 {
 	struct text_obj* obj = zui_obj_get(id);
-	WLU_ASSERT(strlen(str) < get_text_max_str_size(obj->max_line_len, obj->max_lines));
+	const int len = strlen(str);
+	
+	if (len > strlen(obj->str))
+		zui_obj_resize(id, sizeof(*obj) + len + 1);
+
 	strcpy(obj->str, str);
 	zui_cmd_push(id, ZUI_CMD_TYPE_DRAW_TEXT);
 }
 
 bool zui_update(void)
 {
-	return zui_cmd_cnt > 0;
+	return cmd_cnt > 0;
 }
 
 
 void zui_render(struct rgb24* framebuffer)
 {
-	for (int i = 0; i < zui_cmd_cnt; ++i) {
-		switch (zui_cmd_buffer[i].type) {
+	for (int i = 0; i < cmd_cnt; ++i) {
+		switch (commands[i].type) {
 			case ZUI_CMD_TYPE_CLEAR:
 				memset(framebuffer, 0x11, 3 * ZUI_WIDTH * ZUI_HEIGHT);
 				break;
@@ -1055,7 +1118,7 @@ void zui_render(struct rgb24* framebuffer)
 				draw_borders(framebuffer);
 				break;
 			case ZUI_CMD_TYPE_DRAW_TEXT:
-				draw_text(zui_cmd_buffer[i].obj_id, framebuffer);
+				draw_text(commands[i].obj_id, framebuffer);
 				break;
 		}
 	}

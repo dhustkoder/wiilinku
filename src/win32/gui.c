@@ -37,6 +37,13 @@ static uint8_t framebuffer[ZUI_WIDTH * ZUI_HEIGHT * 3];
 
 static zui_obj_id_t connection_status_text_id;
 static zui_obj_id_t connection_local_ip_text_id;
+
+
+static zui_obj_id_t zui_tcnt_strs[5];
+static char tbuf[64];
+static int tcnt_vals[5] = {  0, 0, 0, 0, 0 };
+static int tcnt_inc[5] =  { 8, 16, 32, 64, 128 };
+
 static CRITICAL_SECTION zui_crit_sect;
 
 
@@ -119,8 +126,14 @@ bool gui_init(void)
 
 	zui_init();
 
-	connection_local_ip_text_id = zui_text_create(64, 1, (struct vec2i){ 50, 16 });
-	connection_status_text_id = zui_text_create(64, 1, (struct vec2i){ 50, 32 });
+	connection_local_ip_text_id = zui_text_create("", (struct vec2i){ 50, 16 });
+
+	for (int i = 0; i < 5; ++i) {
+		sprintf(tbuf, "%d", tcnt_vals[i]);
+		zui_tcnt_strs[i] = zui_text_create(tbuf, (struct vec2i){ 320, 16 + i * 10});
+	}
+
+	connection_status_text_id = zui_text_create("", (struct vec2i){ 50, 32 });
 
 	InitializeCriticalSectionAndSpinCount(&zui_crit_sect, ~(DWORD)0);
 
@@ -172,6 +185,8 @@ void gui_set_connection_local_ip(const char* ip)
 	LeaveCriticalSection(&zui_crit_sect);
 }
 
+
+
 gui_event_t gui_update(void)
 {
 	if (wm_destroy_request)
@@ -183,9 +198,16 @@ gui_event_t gui_update(void)
 	if (zui_update()) {
 		EnterCriticalSection(&zui_crit_sect);
 		zui_render((void*)framebuffer);
+		for (int i = 0; i < 5; ++i) {
+			tcnt_vals[i] += tcnt_inc[i];
+			sprintf(tbuf, "%d", tcnt_vals[i]);
+			zui_text_set(zui_tcnt_strs[i], tbuf);
+		}
 		LeaveCriticalSection(&zui_crit_sect);
 		flush_buffer();
 	}
+
+
 
 	return 0;
 }
