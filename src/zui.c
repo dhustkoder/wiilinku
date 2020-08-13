@@ -880,6 +880,8 @@ static void zui_cmd_clear(void)
 static void* zui_obj_get(zui_obj_id_t id)
 {
 	WLU_ASSERT(id < objs_idxs_cnt);
+	void* ptr = objs_buffer + objs_idxs[id];
+	WLU_ASSERT((((uintptr_t)ptr) % MAX_ALIGNMENT_SIZE) == 0);
 	return objs_buffer + objs_idxs[id];
 }
 

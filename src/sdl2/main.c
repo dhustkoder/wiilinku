@@ -121,13 +121,13 @@ int main(void)
 
 	zui_obj_id_t zui_tcnt_strs[5];
 	char tbuf[64];
-	int tcnt_vals[5] = {  0, 0, 0, 0, 0 };
-	int tcnt_inc[5] =  { 8, 16, 32, 64, 128 };
+	unsigned int tcnt_vals[5] = {  0, 0, 0, 0, 0 };
+	int tcnt_inc[5] =  { 1024, 1024 * 2, 1024 * 4, 1024 * 8, 1024 * 16 };
 	zui_init();
 	zui_obj_id_t text_ip_id    = zui_text_create(addr, (struct vec2i){24, 44});
 	zui_obj_id_t text_hello_id = zui_text_create("WiiLinkU: Hello SDL2", (struct vec2i){24, 24});
 	for (int i = 0; i < 5; ++i) {
-		sprintf(tbuf, "%d", tcnt_vals[i]);
+		sprintf(tbuf, "%u", tcnt_vals[i]);
 		zui_tcnt_strs[i] = zui_text_create(tbuf, (struct vec2i){ 320, 16 + i * 10});
 	}
 
@@ -135,7 +135,7 @@ int main(void)
 
 		for (int i = 0; i < 5; ++i) {
 			tcnt_vals[i] += tcnt_inc[i];
-			sprintf(tbuf, "%d", tcnt_vals[i]);
+			sprintf(tbuf, "%u", tcnt_vals[i]);
 			zui_text_set(zui_tcnt_strs[i], tbuf);
 		}
 
