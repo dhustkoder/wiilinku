@@ -6,6 +6,8 @@
 #include <assert.h>
 
 
+#define WORD_SIZE 4
+
 /* debug / assert */
 #ifdef WIILINKU_DEBUG
 
@@ -13,6 +15,7 @@
 
 #ifdef _WIN32
 #include "win32/log.h"
+
 
 #define WLU_ASSERT(cond) {                                     \
 	if (!(cond)) {                                             \

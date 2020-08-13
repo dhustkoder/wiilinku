@@ -857,6 +857,13 @@ static int objs_buffer_size = 0;
 static uint8_t objs_buffer[ZUI_OBJS_BUFFER_MAX_SIZE];
 
 
+static int to_next_word_multiple(int x)
+{
+	while ((x % WORD_SIZE) != 0)
+		++x;
+	return x;
+}
+
 static void zui_cmd_push(zui_obj_id_t id, zui_cmd_type type)
 {
 	WLU_ASSERT(cmd_cnt < ZUI_MAX_COMMANDS);
@@ -878,8 +885,7 @@ static void* zui_obj_get(zui_obj_id_t id)
 
 static zui_obj_id_t zui_obj_push(int size)
 {
-	if ((objs_buffer_size + size % 2) != 0)
-		size += 1;
+	size = to_next_word_multiple(size);
 
 	WLU_ASSERT(objs_buffer_size + size <= ZUI_OBJS_BUFFER_MAX_SIZE);
 	WLU_ASSERT(objs_idxs_cnt < ZUI_MAX_OBJS);
@@ -895,6 +901,7 @@ static void zui_obj_resize(zui_obj_id_t id, int new_size)
 {
 	WLU_ASSERT(id < objs_idxs_cnt);
 
+	new_size = to_next_word_multiple(new_size);
 
 	const int obj_index = objs_idxs[id];
 
@@ -904,11 +911,12 @@ static void zui_obj_resize(zui_obj_id_t id, int new_size)
 	*/
 	if (id == objs_idxs_cnt - 1) {
 		const int old_size = objs_buffer_size - obj_index;
-		int size_diff = new_size - old_size;
-		
-		if (((objs_buffer_size + size_diff) % 2) != 0)
-			size_diff += 1;
+	
+		if (new_size == old_size)
+			return;
 
+		const int size_diff = new_size - old_size;
+		
 		objs_buffer_size += size_diff;
 
 		WLU_ASSERT(objs_buffer_size < ZUI_OBJS_BUFFER_MAX_SIZE);
@@ -924,9 +932,12 @@ static void zui_obj_resize(zui_obj_id_t id, int new_size)
 
 	const int next_obj_index = objs_idxs[id + 1];
 	const int old_size = next_obj_index - obj_index;
-	int size_diff = new_size - old_size;
-	if (((objs_buffer_size + size_diff) % 2) != 0)
-		size_diff += 1;
+	
+	if (new_size == old_size)
+		return;
+
+	const int size_diff = new_size - old_size;
+
 
 	WLU_ASSERT((objs_buffer_size + size_diff) < ZUI_OBJS_BUFFER_MAX_SIZE);
 
