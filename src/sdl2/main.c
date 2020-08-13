@@ -38,7 +38,7 @@ bool platform_init(void)
 		goto Lquitsdl;
 	}
 
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+	renderer = SDL_CreateRenderer(window, -1, 0);
 	if (renderer == NULL) {
 		log_error("Failed to create SDL_Renderer: %s\n", SDL_GetError());
 		goto Lfreewindow;
@@ -99,6 +99,8 @@ int main(void)
 		return -1;
 	}
 
+	log_info("MAX_ALIGNMENT_SIZE: %lu", MAX_ALIGNMENT_SIZE);
+
     struct ifaddrs *ifap, *ifa;
     struct sockaddr_in *sa;
     char *addr;
@@ -109,7 +111,7 @@ int main(void)
             sa = (struct sockaddr_in *) ifa->ifa_addr;
             addr = inet_ntoa(sa->sin_addr);
             if (strcmp(addr, "127.0.0.1") != 0 && strcmp(addr, "0.0.0.0") != 0) {
-            	printf("Interface: %s\tAddress: %s\n", ifa->ifa_name, addr);
+            	log_info("Interface: %s\tAddress: %s\n", ifa->ifa_name, addr);
             	break;
             }
         }
@@ -117,16 +119,30 @@ int main(void)
 
     freeifaddrs(ifap);
 
+	zui_obj_id_t zui_tcnt_strs[5];
+	char tbuf[64];
+	int tcnt_vals[5] = {  0, 0, 0, 0, 0 };
+	int tcnt_inc[5] =  { 8, 16, 32, 64, 128 };
 	zui_init();
-	zui_obj_id_t text_ip_id    = zui_text_create(addr, (struct vec2i){24, 24});
-	zui_obj_id_t text_hello_id = zui_text_create("WiiLinkU: Hello SDL2", (struct vec2i){24, 44});
+	zui_obj_id_t text_ip_id    = zui_text_create(addr, (struct vec2i){24, 44});
+	zui_obj_id_t text_hello_id = zui_text_create("WiiLinkU: Hello SDL2", (struct vec2i){24, 24});
+	for (int i = 0; i < 5; ++i) {
+		sprintf(tbuf, "%d", tcnt_vals[i]);
+		zui_tcnt_strs[i] = zui_text_create(tbuf, (struct vec2i){ 320, 16 + i * 10});
+	}
 
 	while (update_events()) {
+
+		for (int i = 0; i < 5; ++i) {
+			tcnt_vals[i] += tcnt_inc[i];
+			sprintf(tbuf, "%d", tcnt_vals[i]);
+			zui_text_set(zui_tcnt_strs[i], tbuf);
+		}
+
 		if (zui_update()) {
 			int pitch;
 			void* pixels;
 			SDL_LockTexture(texture, NULL, &pixels, &pitch);
-			log_info("SDL BPP: %d\n", pitch / ZUI_WIDTH);
 			zui_render(pixels);
 			SDL_UnlockTexture(texture);
 			SDL_RenderClear(renderer);

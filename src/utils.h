@@ -5,8 +5,7 @@
 #include <stdarg.h>
 #include <assert.h>
 
-
-#define WORD_SIZE 4
+#define MAX_ALIGNMENT_SIZE sizeof(uintptr_t)
 
 /* debug / assert */
 #ifdef WIILINKU_DEBUG

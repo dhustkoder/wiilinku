@@ -857,9 +857,9 @@ static int objs_buffer_size = 0;
 static uint8_t objs_buffer[ZUI_OBJS_BUFFER_MAX_SIZE];
 
 
-static int to_next_word_multiple(int x)
+static int get_next_mem_aligned_value(int x)
 {
-	while ((x % WORD_SIZE) != 0)
+	while ((x % MAX_ALIGNMENT_SIZE) != 0)
 		++x;
 	return x;
 }
@@ -885,7 +885,7 @@ static void* zui_obj_get(zui_obj_id_t id)
 
 static zui_obj_id_t zui_obj_push(int size)
 {
-	size = to_next_word_multiple(size);
+	size = get_next_mem_aligned_value(size);
 
 	WLU_ASSERT(objs_buffer_size + size <= ZUI_OBJS_BUFFER_MAX_SIZE);
 	WLU_ASSERT(objs_idxs_cnt < ZUI_MAX_OBJS);
@@ -901,7 +901,7 @@ static void zui_obj_resize(zui_obj_id_t id, int new_size)
 {
 	WLU_ASSERT(id < objs_idxs_cnt);
 
-	new_size = to_next_word_multiple(new_size);
+	new_size = get_next_mem_aligned_value(new_size);
 
 	const int obj_index = objs_idxs[id];
 
