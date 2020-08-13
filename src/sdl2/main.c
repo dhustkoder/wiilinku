@@ -118,10 +118,8 @@ int main(void)
     freeifaddrs(ifap);
 
 	zui_init();
-	zui_obj_id_t text1id = zui_text_create(64, 1, (struct vec2i){24, 24});
-	zui_obj_id_t texipid = zui_text_create(64, 1, (struct vec2i){24, 44});
-	zui_text_set(text1id, "WiiLinkU: Hello SDL2");
-	zui_text_set(texipid, addr);
+	zui_obj_id_t text_ip_id    = zui_text_create(addr, (struct vec2i){24, 24});
+	zui_obj_id_t text_hello_id = zui_text_create("WiiLinkU: Hello SDL2", (struct vec2i){24, 44});
 
 	while (update_events()) {
 		if (zui_update()) {
