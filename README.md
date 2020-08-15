@@ -21,9 +21,9 @@ git clone --recursive https://github.com/dhustkoder/wiilinku
 
 # Compiling
 ### WiiU
-- make -f wiiu.mak
+- make -f wiiu.mak BUILD_TYPE=Release
 
 ### Windows
 - compile externals/ViGEmClient first using VS2019
-- win32.bat
+- windows.bat release
 
