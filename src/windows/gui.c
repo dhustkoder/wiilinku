@@ -7,6 +7,55 @@
 #include "error.h"
 
 
+struct gui_text {
+	zui_obj_id_t id;
+	struct vec2i origin;
+	const char* str;
+};
+
+struct gui_text gui_header_txts[] = {
+	{
+		.origin = { .x = ZUI_WIDTH / 2, .y = 22 },
+		.str = "WiiLinkU " WIILINKU_VER_STR
+	},
+	{
+		.origin = { .x = ZUI_WIDTH / 2, .y = 44 },
+		.str = "Loading local IP..."
+	},
+	{
+		.origin = { .x = ZUI_WIDTH / 2, .y = 64 },
+		.str = "Connection Status: Not Connected"
+	}
+};
+
+struct gui_text gui_joy_txts[] = {
+	{
+		.origin = { .x = 96, .y = 128 },
+		.str = "Controllers Connected: 0"
+	},
+	{
+		.origin = { .x = 96, .y = 138 },
+		.str = "WiiU Gamepad"
+	},
+	{
+		.origin = { .x = 96, .y = 148 },
+		.str = "Wiimote 1"
+	},
+	{
+		.origin = { .x = 96, .y = 158 },
+		.str = "Wiimote 2"
+	},
+	{
+		.origin = { .x = 96, .y = 168 },
+		.str = "Wiimote 3"
+	},
+	{
+		.origin = { .x = 96, .y = 178 },
+		.str = "Wiimote 4"
+	},
+};
+
+
 
 static HWND hwnd_mainwin;
 static WNDCLASS wc;
@@ -15,6 +64,7 @@ static MSG msg_mainwin;
 static BOOL wm_destroy_request = 0;
 static DWORD win_width;
 static DWORD win_height;
+
 
 static HDC hdc_mainwin;
 static BITMAPINFO bmi = {
@@ -34,16 +84,6 @@ static BITMAPINFO bmi = {
 };
 
 static uint8_t framebuffer[ZUI_WIDTH * ZUI_HEIGHT * 3];
-
-static zui_obj_id_t connection_status_text_id;
-static zui_obj_id_t connection_local_ip_text_id;
-
-
-static zui_obj_id_t zui_tcnt_strs[5];
-static char tbuf[64];
-static int tcnt_vals[5] = {  0, 0, 0, 0, 0 };
-static int tcnt_inc[5] =  { 8, 16, 32, 64, 128 };
-
 static CRITICAL_SECTION zui_crit_sect;
 
 
@@ -94,7 +134,7 @@ static LRESULT window_proc_clbk(HWND hwnd,
 bool gui_init(void)
 { 
 	memset(&wc, 0, sizeof(wc));
-	wc.lpfnWndProc   = window_proc_clbk;
+	wc.lpfnWndProc   = (void*)window_proc_clbk;
 	wc.lpszClassName = TEXT("WiiLinkU " WIILINKU_VER_STR);
 
 	RegisterClass(&wc);
@@ -126,19 +166,19 @@ bool gui_init(void)
 
 	zui_init();
 
-	connection_local_ip_text_id = zui_text_create("", (struct vec2i){ 50, 16 });
-
-	for (int i = 0; i < 5; ++i) {
-		sprintf(tbuf, "%d", tcnt_vals[i]);
-		zui_tcnt_strs[i] = zui_text_create(tbuf, (struct vec2i){ 320, 16 + i * 10});
+	for (int i = 0; i < (sizeof(gui_header_txts)/sizeof(gui_header_txts[0])); ++i) {
+		gui_header_txts[i].id = zui_text_create(gui_header_txts[i].origin);
+		zui_text_set(gui_header_txts[i].id, gui_header_txts[i].str);
+		zui_text_draw(gui_header_txts[i].id);
 	}
 
-	connection_status_text_id = zui_text_create("", (struct vec2i){ 50, 32 });
+	for (int i = 0; i < (sizeof(gui_joy_txts)/sizeof(gui_joy_txts[0])); ++i) {
+		gui_joy_txts[i].id = zui_text_create(gui_joy_txts[i].origin);
+		zui_text_set(gui_joy_txts[i].id, gui_joy_txts[i].str);
+	}
+
 
 	InitializeCriticalSectionAndSpinCount(&zui_crit_sect, ~(DWORD)0);
-
-	gui_set_connection_status(false, NULL);
-	gui_set_connection_local_ip(NULL);
 
 	return true;
 }
@@ -150,41 +190,77 @@ void gui_term(void)
 	DestroyWindow(hwnd_mainwin);
 }
 
-void gui_set_connection_status(bool connected, const char* clientaddr)
+void gui_set_local_ip_string(const char* ip)
 {
+	char buf[64];
+	if (ip != NULL)
+		sprintf(buf, "Your IP: %s", ip);
+	else
+		sprintf(buf, "Couldn't load your local IP. Try ipconfig");
+
 	EnterCriticalSection(&zui_crit_sect);
-	if (!connected) {
-		zui_text_set(
-			connection_status_text_id,
-			"Connection status: Waiting For Client"
-		);
-	} else {
-		char buf[64];
-		sprintf(buf, "Connection Status: Connected to %s", clientaddr);
-		zui_text_set(connection_status_text_id, buf);
-	}
+	zui_text_set(gui_header_txts[1].id, buf);
+	zui_text_draw(gui_header_txts[1].id);
 	LeaveCriticalSection(&zui_crit_sect);
 }
 
-void gui_set_connection_local_ip(const char* ip)
+void gui_set_client_ip_string(const char* client_ip)
 {
+	char buf[64];
+
+	if (client_ip != NULL) 
+		sprintf(buf, "Connection Status: Connected to %s", client_ip);
+	else
+		strcpy(buf, gui_header_txts[2].str);
+
 	EnterCriticalSection(&zui_crit_sect);
-	if (ip == NULL) {
-		zui_text_set(
-			connection_local_ip_text_id,
-			"Getting local IP..."
-		);
-	} else {
-		char buf[64];
-		sprintf(buf, "Your PC IP: %s", ip);
-		zui_text_set(
-			connection_local_ip_text_id,
-			buf
-		);
-	}
+	zui_text_set(gui_header_txts[2].id, buf);
+	zui_text_draw(gui_header_txts[2].id);
 	LeaveCriticalSection(&zui_crit_sect);
 }
 
+void gui_set_connected_controllers(input_packet_flags_t flags)
+{
+	static input_packet_flags_t last_flags = 0;
+	const input_packet_flags_t joyflags[] = {
+		INPUT_PACKET_FLAG_GAMEPAD,
+		INPUT_PACKET_FLAG_WIIMOTE_0,
+		INPUT_PACKET_FLAG_WIIMOTE_1,
+		INPUT_PACKET_FLAG_WIIMOTE_2,
+		INPUT_PACKET_FLAG_WIIMOTE_3
+	};
+	char buf[32];
+
+	if (last_flags == flags)
+		return;
+
+	last_flags = flags;
+
+	EnterCriticalSection(&zui_crit_sect);
+
+	int nconn = 0;
+	
+	for (int i = 0; i < sizeof(joyflags)/sizeof(joyflags[0]); ++i) {
+		if (flags&joyflags[i]) {
+			++nconn;
+			zui_text_draw(gui_joy_txts[i + 1].id);
+		} else {
+			zui_text_erase(gui_joy_txts[i + 1].id);
+		}
+	}
+	
+	if (nconn > 0) {
+		sprintf(buf, "Controllers Connected: %d", nconn);
+		zui_text_set(gui_joy_txts[0].id, buf);
+		zui_text_draw(gui_joy_txts[0].id);
+	} else {
+		zui_text_erase(gui_joy_txts[0].id);
+	}
+	
+	LeaveCriticalSection(&zui_crit_sect);
+
+	
+}
 
 
 gui_event_t gui_update(void)
@@ -195,19 +271,12 @@ gui_event_t gui_update(void)
 	while (PeekMessageA(&msg_mainwin, hwnd_mainwin, 0, 0, PM_REMOVE))
 		DispatchMessage(&msg_mainwin);
 
+	EnterCriticalSection(&zui_crit_sect);
 	if (zui_update()) {
-		EnterCriticalSection(&zui_crit_sect);
 		zui_render((void*)framebuffer);
-		for (int i = 0; i < 5; ++i) {
-			tcnt_vals[i] += tcnt_inc[i];
-			sprintf(tbuf, "%d", tcnt_vals[i]);
-			zui_text_set(zui_tcnt_strs[i], tbuf);
-		}
-		LeaveCriticalSection(&zui_crit_sect);
 		flush_buffer();
 	}
-
-
+	LeaveCriticalSection(&zui_crit_sect);
 
 	return 0;
 }

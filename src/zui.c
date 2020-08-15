@@ -833,7 +833,8 @@ typedef uint8_t zui_cmd_type;
 enum zui_cmd_id {
 	ZUI_CMD_TYPE_CLEAR,
 	ZUI_CMD_TYPE_DRAW_BORDERS,
-	ZUI_CMD_TYPE_DRAW_TEXT
+	ZUI_CMD_TYPE_DRAW_TEXT,
+	ZUI_CMD_TYPE_ERASE_TEXT
 };
 
 struct zui_cmd {
@@ -841,9 +842,10 @@ struct zui_cmd {
 	zui_cmd_type type;
 };
 
+
 struct text_obj {
 	struct recti dirty_rect; /* do u feel lucky, punk? */
-	struct vec2i coord;
+	struct vec2i origin;
 	char str[];
 };
 
@@ -1016,64 +1018,67 @@ static void draw_borders(struct rgb24* dest)
 	}
 }
 
-static void draw_text(
-	zui_obj_id_t id,
-	struct rgb24* framebuffer
-)
-{	
-	const struct rgb24* cset = (void*)charset_data;
+static void draw_text_line(const char* line, struct rgb24* dest)
+{
+	const struct rgb24* bmp_char_set = (void*) charset_data;
+	const struct rgb24* bmp_char;
+	const struct rgb24* pixel;
 
-	struct text_obj* obj = zui_obj_get(id);
-	const size_t len = strlen(obj->str);
+	while (*line != '\n' && *line != '\0') {
+		char c = *line;
 
-	const struct vec2i dest_size = get_text_required_buffer_size(obj->str);
+		WLU_ASSERT(c >= 32 && c <= 126);
+		
+		c -= 32;
 
-	struct rgb24* dest_orig = &framebuffer[
-		(obj->coord.y * ZUI_WIDTH) + 
-		obj->coord.x
-	];
-
-	const char* str = obj->str;
-
-	int dest_x = 0, dest_y = 0;
-
-	if (obj->dirty_rect.size.x || obj->dirty_rect.size.y)
-		clean_rect(obj->dirty_rect, framebuffer);
-
-	obj->dirty_rect.coord = obj->coord;
-	obj->dirty_rect.size = dest_size;
-
-	for (int i = 0; i < len; ++i) {
-		char c = str[i];
-
-		if (c >= 32 && c <= 126) {
-			c -= 32;
-		} else if (c == '\n') {
-			dest_y += CHAR_H + 1;
-			dest_x = 0;
-			continue;
-		} else {
-			continue;
-		}
-
-		const struct rgb24* const src = &cset[
-			((c / CHARS_PER_LINE) * CHAR_H * CHARSET_W) + 
-				((c % CHARS_PER_LINE) * CHAR_W)
+		bmp_char = &bmp_char_set[
+			((c / CHARS_PER_LINE) * CHAR_H * CHARSET_W) +
+			((c % CHARS_PER_LINE) * CHAR_W)
 		];
-
-		struct rgb24* dest = dest_orig + (dest_y * ZUI_WIDTH) + dest_x;
 
 		for (int cy = 0; cy < CHAR_H; ++cy) {
 			for (int cx = 0; cx < CHAR_W; ++cx) {
-				const struct rgb24* pix = &src[(cy * CHARSET_W) + cx];
-				if (pix->r || pix->g || pix->b)
-					dest[(cy * ZUI_WIDTH) + cx] = *pix;
+				pixel = &bmp_char[(cy * CHARSET_W) + cx];
+				if (pixel->r || pixel->g || pixel->b)
+					dest[(cy * ZUI_WIDTH) + cx] = *pixel;
 			}
 		}
 
-		dest_x += CHAR_W;
-		if (dest_x >= dest_size.x)
-			dest_x = 0;
+		dest += CHAR_W;
+		++line;
+	}
+}
+
+static void draw_text(zui_obj_id_t id, struct rgb24* fb)
+{	
+	struct text_obj* obj = zui_obj_get(id);
+	const char* str = obj->str;
+	const int longest_line_len = str_longest_line_len(str);
+	const int lines = str_cnt_lines(str);
+	const int str_w = longest_line_len * CHAR_W;
+	const int str_h = lines * CHAR_H;
+	
+	struct vec2i coord = {
+		.x = obj->origin.x - (str_w / 2),
+		.y = obj->origin.y - (str_h / 2)
+	};
+
+	WLU_ASSERT(coord.x >= 0 && coord.y >= 0);
+	WLU_ASSERT(coord.x < ZUI_WIDTH && coord.y < ZUI_HEIGHT);
+
+	if (obj->dirty_rect.size.x || obj->dirty_rect.size.y)
+		clean_rect(obj->dirty_rect, fb);
+
+	const struct vec2i dest_size = get_text_required_buffer_size(obj->str);
+	obj->dirty_rect.coord = coord;
+	obj->dirty_rect.size = dest_size;
+
+	for (int i = 0; i < lines; ++i) {
+		const int line_len = str_line_len(str);
+		const int line_w = line_len * CHAR_W;
+		draw_text_line(str, &fb[coord.y * ZUI_WIDTH + coord.x]);
+		str = str_next_line(str + line_len);
+		coord.y += CHAR_H;
 	}
 }
 
@@ -1091,30 +1096,35 @@ void zui_term(void)
 	zui_obj_clear();
 }
 
-zui_obj_id_t zui_text_create(
-	const char* str,
-	const struct vec2i coord
-)
+zui_obj_id_t zui_text_create(struct vec2i origin)
 {
-	const int len =  strlen(str) + 1;
-	const zui_obj_id_t id = zui_obj_push(sizeof(struct text_obj) + len);
+	const zui_obj_id_t id = zui_obj_push(
+		sizeof(struct text_obj) + MAX_ALIGNMENT_SIZE
+	);
 	struct text_obj* obj = zui_obj_get(id);
-	obj->coord = coord;
-	strcpy(obj->str, str);
-	zui_cmd_push(id, ZUI_CMD_TYPE_DRAW_TEXT);
+	obj->origin = origin;
 	return id;
 }
 
 void zui_text_set(const zui_obj_id_t id, const char* str)
 {
 	struct text_obj* obj = zui_obj_get(id);
-	const int len = strlen(str);
+	const size_t len = strlen(str);
 	
 	if (len > strlen(obj->str))
 		zui_obj_resize(id, sizeof(*obj) + len + 1);
 
 	strcpy(obj->str, str);
+}
+
+void zui_text_draw(const zui_obj_id_t id)
+{
 	zui_cmd_push(id, ZUI_CMD_TYPE_DRAW_TEXT);
+}
+
+void zui_text_erase(zui_obj_id_t id)
+{
+	zui_cmd_push(id, ZUI_CMD_TYPE_ERASE_TEXT);
 }
 
 bool zui_update(void)
@@ -1136,6 +1146,11 @@ void zui_render(struct rgb24* framebuffer)
 			case ZUI_CMD_TYPE_DRAW_TEXT:
 				draw_text(commands[i].obj_id, framebuffer);
 				break;
+			case ZUI_CMD_TYPE_ERASE_TEXT: {
+				struct text_obj* obj = zui_obj_get(commands[i].obj_id);
+				clean_rect(obj->dirty_rect, framebuffer);
+				break;
+			}
 		}
 	}
 

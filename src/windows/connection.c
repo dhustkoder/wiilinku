@@ -197,7 +197,6 @@ static bool setup_local_ip_buf(void)
 		log_debug("desc: %s", itr->Description);
 		log_debug("type: %u", itr->Type);
 		log_debug("addr: %s", itr->IpAddressList.IpAddress.String);
-		log_debug("gateway: %s", itr->GatewayList.IpAddress);
 		log_debug("---------------------------------------------");
 		if (itr->Type == IF_TYPE_IEEE80211 || itr->Type == MIB_IF_TYPE_ETHERNET) {
 			if (strcmp(itr->IpAddressList.IpAddress.String, "0.0.0.0") != 0) {

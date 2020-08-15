@@ -13,7 +13,7 @@
 #define WIILINKU_VER_STR "v0.1-debug"
 
 #ifdef _WIN32
-#include "win32/log.h"
+#include "log.h"
 
 
 #define WLU_ASSERT(cond) {                                     \
@@ -156,8 +156,39 @@ inline static int str_longest_line_len(const char* str)
 	return longest_line_len > cnt ? longest_line_len : cnt;
 }
 
+inline static int str_line_len(const char* str)
+{
+	int len = 0;
+	
+	while (*str != '\0' && *str != '\n') {
+		++str;
+		++len;
+	}
 
+	return len;
+}
 
+inline static int str_cnt_lines(const char* str) 
+{
+	int nlines = 1;
+	while (*str != '\0') {
+		if (*str == '\n')
+			++nlines;
+		++str;
+	}
+	return nlines;
+}
+
+inline static const char* str_next_line(const char* str)
+{
+	while (*str != '\n' && *str != '\0')
+		++str;
+
+	while (*str == '\n')
+		++str;
+
+	return str;
+}
 
 
 

@@ -3,7 +3,6 @@
 #include "utils.h"
 
 
-#define HOST_IP_ADDRESS            "192.168.15.7"
 #define PING_PACKET_PORT           (7171)
 #define INPUT_PACKET_PORT          (7172)
 #define INPUT_FEEDBACK_PACKET_PORT (7173)
@@ -96,7 +95,7 @@ struct wiimote {
 	uint32_t btns;
 };
 
-
+typedef uint8_t input_packet_flags_t;
 enum INPUT_PACKET_FLAGS {
 	INPUT_PACKET_FLAG_GAMEPAD   = 0x01,
 	INPUT_PACKET_FLAG_WIIMOTE_0 = 0x02,
@@ -106,22 +105,13 @@ enum INPUT_PACKET_FLAGS {
 };
 
 struct input_packet {
-	uint8_t flags;
+	input_packet_flags_t flags;
 	struct wiiu_gamepad gamepad;
 	struct wiimote wiimotes[4];
 };
 
 struct input_feedback_packet {
 	uint8_t placeholder;
-};
-
-enum ping_pong_packet_types {
-	PING_PONG_PACKET_TYPE_PING = 0xC0,
-	PING_PONG_PACKET_TYPE_PONG = 0xDE
-};
-
-struct ping_pong_packet {
-	uint8_t type;
 };
 
 

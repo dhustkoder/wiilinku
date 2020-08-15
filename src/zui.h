@@ -14,13 +14,17 @@ typedef int zui_obj_id_t;
 
 extern void zui_init(void);
 extern void zui_term(void);
-extern zui_obj_id_t zui_text_create(
-	const char* str,
-	struct vec2i coord
-);
-extern void zui_text_set(zui_obj_id_t id, const char* str);
 extern bool zui_update();
 extern void zui_render(struct rgb24* dest);
+
+
+extern zui_obj_id_t zui_text_create(struct vec2i origin);
+extern void zui_text_set(const zui_obj_id_t id, const char* str);
+extern void zui_text_draw(zui_obj_id_t id);
+extern void zui_text_erase(zui_obj_id_t id);
+
+
+
 
 
 

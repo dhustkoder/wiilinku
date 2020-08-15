@@ -16,7 +16,7 @@ void log_internal_write(enum log_level lvl, const char* fmt, ...)
 
 	int written;
 
-	FMT_STR_VARGS_EX(log_internal_buffer, sizeof(log_internal_buffer), written, fmt, fmt);
+	FMT_STR_VARGS_EX(log_internal_buffer, LOG_INTERNAL_BUFFER_SIZE, written, fmt, fmt);
 
 	log_internal_buffer[written++] = '\n';
 	WriteConsoleA(stdout_handle, log_internal_buffer, written, NULL, NULL);

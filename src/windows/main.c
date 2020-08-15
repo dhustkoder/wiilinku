@@ -26,18 +26,16 @@ static DWORD WINAPI connection_state_manager_thread(LPVOID lp)
 			Sleep(PING_INTERVAL_SEC * 1000);
 
 			if (!connection_ping_client()) {
-				gui_set_connection_status(false, NULL);
 				PlaySound(TEXT("DeviceDisconnect"), NULL, SND_ALIAS|SND_ASYNC);
-
-
+				gui_set_client_ip_string(NULL);
 			}
 
 
 		} else {
 
 			if (connection_wait_client()) {
-				gui_set_connection_status(true, connection_get_client_address());
 				PlaySound(TEXT("DeviceConnect"), NULL, SND_ALIAS|SND_ASYNC);
+				gui_set_client_ip_string(connection_get_client_address());
 			}
 
 		}
@@ -60,6 +58,7 @@ static DWORD WINAPI connection_input_manger_thread(LPVOID lp)
 		}
 		
 		if (connection_recv_input_packet(&input)) {
+			gui_set_connected_controllers(input.flags);
 			input_update(&input);
 		}
 	}
@@ -99,7 +98,7 @@ static bool init_platform(void)
 	if (!gui_init())
 		return false;
 
-	gui_set_connection_local_ip(connection_get_host_address());
+	gui_set_local_ip_string(connection_get_host_address());
 
 	for (int i = 0; i < sizeof(thandles)/sizeof(thandles[0]); ++i) {
 		*thandles[i] = CreateThread(
@@ -175,8 +174,8 @@ int CALLBACK WinMain(
 		event = gui_update();
 		++framecnt;
 
-		//if ((GetTickCount() - frametime) < 33)
-		//	Sleep(33 - (GetTickCount() - frametime));
+		if ((GetTickCount() - frametime) < 33)
+			Sleep(33 - (GetTickCount() - frametime));
 
 		if ((GetTickCount() - lasttick) >= 1000)  {
 			log_debug("UI THREAD FPS: %ld", framecnt);
