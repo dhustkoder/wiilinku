@@ -17,6 +17,27 @@ include $(DEVKITPRO)/wut/share/wut_rules
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
 #-------------------------------------------------------------------------------
+
+#check WLU_VERSION_STR
+
+GITTAG := $(shell git describe --tags --abbrev=0)
+
+GITTAG_HASH := $(shell git rev-list -n 1 --abbrev-commit $(GITTAG))
+
+GITHASH := $(shell git rev-parse --short HEAD)
+
+ifeq ($(GITTAG_HASH), $(GITHASH))
+	WLU_VERSION_STR:=$(GITTAG)
+else
+	WLU_VERSION_STR:=$(GITTAG)-$(GITHASH)
+endif
+
+$(shell git diff --quiet)
+ifeq ($(.SHELLSTATUS), 1)
+	WLU_VERSION_STR:=$(WLU_VERSION_STR)-dirty
+endif
+
+
 ifeq ($(BUILD_TYPE),Release)
 OUTPUTDIR    := wiiu_release_build
 else
@@ -33,9 +54,10 @@ INCLUDES	:=	src src/wiiu
 #-------------------------------------------------------------------------------
 # options for code generation
 #-------------------------------------------------------------------------------
-
 CFLAGS   := -D__WIIU__ -D__WUT__ -DWIIUPCX_CLIENT \
-            $(INCLUDE) $(MACHDEP) -Wall -Wextra  -ffunction-sections
+	-DWLU_VERSION_STR=\"$(WLU_VERSION_STR)\" \
+	$(INCLUDE) $(MACHDEP) -Wall -Wextra  -ffunction-sections
+
 ifeq ($(BUILD_TYPE),Release)
 CFLAGS	 +=	-O2 -DNDEBUG
 else

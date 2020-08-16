@@ -6,7 +6,7 @@ if not %RUN_AFTER_BUILD% set RUN_AFTER_BUILD="%1"=="run"
 set CC=cl
 
 
-REM CHECK TARGET ARCH / VERSION TAG n HASH
+REM CHECK TARGET ARCH / WLU_VERSION_STR
 
 pushd %tmp%
 
@@ -80,9 +80,9 @@ if "%BUILD_TYPE%"=="release" goto build_release else goto build_debug
 goto compile
 
 :build_release
-set CFLAGS=%CFLAGS_RELEASE%
-set LDFLAGS=%LDFLAGS_RELEASE%
-set BUILD_DIR="windows_%ARCH%_release_build"
+	set CFLAGS=%CFLAGS_RELEASE%
+	set LDFLAGS=%LDFLAGS_RELEASE%
+	set BUILD_DIR="windows_%ARCH%_release_build"
 goto compile
 
 :compile

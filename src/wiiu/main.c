@@ -15,7 +15,7 @@ static const char* logo_ascii =
 " \\ \\      / / (_) (_) | |     (_)  _ __   | | __ | | | |   \n"
 "  \\ \\ /\\ / /  | | | | | |     | | | '_ \\  | |/ / | | | | \n"
 "   \\ V  V /   | | | | | |___  | | | | | | |   <  | |_| |    \n"
-"    \\_/\\_/    |_| |_| |_____| |_| |_| |_| |_|\\_\\  \\___/ " WIILINKU_VER_STR"\n"
+"    \\_/\\_/    |_| |_| |_____| |_| |_| |_| |_|\\_\\  \\___/ " WLU_VERSION_STR"\n"
 "                                                             \n";
                                                                        
 
@@ -97,7 +97,7 @@ static bool platform_init(void)
 	if (!connection_init())
 		return false;
 
-	#ifdef WIILINKU_DEBUG
+	#ifdef WLU_DEBUG
 	video_log_printf("you are running a debug build");
 	#else
 	video_log_printf("you are running a release build");
