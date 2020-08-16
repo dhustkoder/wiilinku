@@ -6,7 +6,7 @@ if not %RUN_AFTER_BUILD% set RUN_AFTER_BUILD="%1"=="run"
 set CC=cl
 
 
-REM CHECK TARGET ARCH
+REM CHECK TARGET ARCH / VERSION TAG n HASH
 
 pushd %tmp%
 
@@ -21,11 +21,20 @@ echo int main() {}           >> %TMP_FILE_PREFIX%.c
 %CC% /c %TMP_FILE_PREFIX%.c > nul 2>&1
 set ERROR=%errorLevel%
 if %ERROR%==0 (set ARCH=x64) else (set ARCH=x86)
-del %TMP_FILE_PREFIX%.*
 
 popd
 
-set WLU_VERSION_STR=\"v0.1-b\"
+
+git rev-parse --short HEAD > %tmp%\%TMP_FILE_PREFIX%.txt
+
+set ERROR=%errorLevel%
+if %ERROR%==0 (set /P GITHASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITHASH="unknown")
+set WLU_VERSION_STR=\"v0.1-b-%GITHASH%\"
+
+del %tmp%\%TMP_FILE_PREFIX%.*
+
+
+
 
 REM CFLAGS SETUP
 set CDEFS=/D_CRT_SECURE_NO_WARNINGS /D_WINSOCK_DEPRECATED_NO_WARNINGS /DWLU_HOST /DWLU_VERSION_STR=%WLU_VERSION_STR%
