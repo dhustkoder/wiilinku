@@ -27,6 +27,7 @@ popd
 
 git rev-parse --short HEAD > %tmp%\%TMP_FILE_PREFIX%.txt
 
+
 set ERROR=%errorLevel%
 if %ERROR%==0 (set /P GITHASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITHASH="unknown")
 set WLU_VERSION_STR=\"v0.1-b-%GITHASH%\"
