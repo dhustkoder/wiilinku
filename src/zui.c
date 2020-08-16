@@ -882,9 +882,12 @@ static void zui_cmd_clear(void)
 static void* zui_obj_get(zui_obj_id_t id)
 {
 	WLU_ASSERT(id < objs_idxs_cnt);
+	
 	void* ptr = objs_buffer + objs_idxs[id];
+	
 	WLU_ASSERT((((uintptr_t)ptr) % MAX_ALIGNMENT_SIZE) == 0);
-	return objs_buffer + objs_idxs[id];
+	
+	return ptr;
 }
 
 static zui_obj_id_t zui_obj_push(int size)
@@ -1066,8 +1069,7 @@ static void draw_text(zui_obj_id_t id, struct rgb24* fb)
 	WLU_ASSERT(coord.x >= 0 && coord.y >= 0);
 	WLU_ASSERT(coord.x < ZUI_WIDTH && coord.y < ZUI_HEIGHT);
 
-	if (obj->dirty_rect.size.x || obj->dirty_rect.size.y)
-		clean_rect(obj->dirty_rect, fb);
+	clean_rect(obj->dirty_rect, fb);
 
 	const struct vec2i dest_size = get_text_required_buffer_size(obj->str);
 	obj->dirty_rect.coord = coord;
@@ -1075,7 +1077,6 @@ static void draw_text(zui_obj_id_t id, struct rgb24* fb)
 
 	for (int i = 0; i < lines; ++i) {
 		const int line_len = str_line_len(str);
-		const int line_w = line_len * CHAR_W;
 		draw_text_line(str, &fb[coord.y * ZUI_WIDTH + coord.x]);
 		str = str_next_line(str + line_len);
 		coord.y += CHAR_H;
@@ -1149,6 +1150,8 @@ void zui_render(struct rgb24* framebuffer)
 			case ZUI_CMD_TYPE_ERASE_TEXT: {
 				struct text_obj* obj = zui_obj_get(commands[i].obj_id);
 				clean_rect(obj->dirty_rect, framebuffer);
+				obj->dirty_rect.size.x = 0;
+				obj->dirty_rect.size.y = 0;
 				break;
 			}
 		}

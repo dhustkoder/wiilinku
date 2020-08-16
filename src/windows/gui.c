@@ -221,14 +221,16 @@ void gui_set_client_ip_string(const char* client_ip)
 
 void gui_set_connected_controllers(input_packet_flags_t flags)
 {
-	static input_packet_flags_t last_flags = 0;
-	const input_packet_flags_t joyflags[] = {
+	static const input_packet_flags_t joyflags[] = {
 		INPUT_PACKET_FLAG_GAMEPAD,
 		INPUT_PACKET_FLAG_WIIMOTE_0,
 		INPUT_PACKET_FLAG_WIIMOTE_1,
 		INPUT_PACKET_FLAG_WIIMOTE_2,
 		INPUT_PACKET_FLAG_WIIMOTE_3
 	};
+
+	static input_packet_flags_t last_flags = 0;
+
 	char buf[32];
 
 	if (last_flags == flags)

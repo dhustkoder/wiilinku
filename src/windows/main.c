@@ -53,6 +53,7 @@ static DWORD WINAPI connection_input_manger_thread(LPVOID lp)
 
 	while (!terminate_threads) {
 		if (!connection_is_connected()) {
+			gui_set_connected_controllers(0);
 			Sleep(1000);
 			continue;
 		}
