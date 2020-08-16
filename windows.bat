@@ -19,18 +19,25 @@ echo #endif                  >> %TMP_FILE_PREFIX%.c
 echo int main() {}           >> %TMP_FILE_PREFIX%.c
 
 %CC% /c %TMP_FILE_PREFIX%.c > nul 2>&1
-set ERROR=%errorLevel%
-if %ERROR%==0 (set ARCH=x64) else (set ARCH=x86)
+if %errorLevel%==0 (set ARCH=x64) else (set ARCH=x86)
 
 popd
 
 
+git describe --tags --abbrev=0 > %tmp%\%TMP_FILE_PREFIX%.txt
+if %errorLevel%==0 (set /P GITTAG=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITTAG="unkown")
+
+git rev-list -n 1 --abbrev-commit %GITTAG% > %tmp%\%TMP_FILE_PREFIX%.txt
+if %errorLevel%==0 (set /P GITTAG_HASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITTAG_HASH="unkown")
+
 git rev-parse --short HEAD > %tmp%\%TMP_FILE_PREFIX%.txt
+if %errorLevel%==0 (set /P GITHASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITHASH="unknown")
 
+set WLU_VERSION_STR=\"%GITTAG%\"
+if NOT %GITTAG_HASH%==%GITHASH% ( set WLU_VERSION_STR=%WLU_VERSION_STR%\"-%GITHASH%\" )
 
-set ERROR=%errorLevel%
-if %ERROR%==0 (set /P GITHASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITHASH="unknown")
-set WLU_VERSION_STR=\"v0.1-b-%GITHASH%\"
+git diff --quiet
+if NOT %errorLevel%==0 ( set WLU_VERSION_STR=%WLU_VERSION_STR%\"-dirty\" )
 
 del %tmp%\%TMP_FILE_PREFIX%.*
 
