@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<app version="0.1">
+<app version="1">
   <name>WiiLinkU</name>
   <coder>dhustkoder</coder>
-  <version>0.1</version>
-  <release_date>20200808000000</release_date>
+  <version>0.1-c</version>
+  <release_date>20200816000000</release_date>
   <short_description>Use Gamepad as XBOX Controllers on PC</short_description>
   <long_description>
     Connects the Gamepad to PC as XBOX Controller
