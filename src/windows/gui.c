@@ -16,7 +16,7 @@ struct gui_text {
 struct gui_text gui_header_txts[] = {
 	{
 		.origin = { .x = ZUI_WIDTH / 2, .y = 22 },
-		.str = "WiiLinkU " WIILINKU_VER_STR
+		.str = "WiiLinkU " WLU_VERSION_STR
 	},
 	{
 		.origin = { .x = ZUI_WIDTH / 2, .y = 44 },
@@ -135,7 +135,7 @@ bool gui_init(void)
 { 
 	memset(&wc, 0, sizeof(wc));
 	wc.lpfnWndProc   = (void*)window_proc_clbk;
-	wc.lpszClassName = TEXT("WiiLinkU " WIILINKU_VER_STR);
+	wc.lpszClassName = TEXT("WiiLinkU " WLU_VERSION_STR);
 
 	RegisterClass(&wc);
 	

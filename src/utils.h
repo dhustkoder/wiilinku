@@ -5,12 +5,17 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#define MAX_ALIGNMENT_SIZE sizeof(uintptr_t)
+
+#ifndef WLU_VERSION_STR
+#error "Version str missing"
+#endif
+
+
+#define WLU_MAX_ALIGNMENT_SIZE sizeof(uintptr_t)
+
 
 /* debug / assert */
-#ifdef WIILINKU_DEBUG
-
-#define WIILINKU_VER_STR "v0.1-debug"
+#ifdef WLU_DEBUG
 
 #ifdef _WIN32
 #include "log.h"
@@ -55,8 +60,6 @@
 
 #else
 
-#define WIILINKU_VER_STR "v0.1-release"
-
 #define WLU_ASSERT(...) ((void)0)
 
 #endif /* DEBUG */
@@ -65,9 +68,9 @@
 /* compiler utils */
 #ifdef _WIN32
 #define WLU_UNUSED(x) ((void)x)
-#elif defined(__WIIU__) || defined(__APPLE__)
+#elif __GNUC__
 #define WLU_UNUSED(x) ((void)x)
-#endif
+#endif /* MSVC / GCC */
 
 
 #ifdef _WIN32
@@ -76,25 +79,14 @@
 #define BSWAP_64(x) _byteswap_uint64(x)
 
 
-#elif defined(__WIIU__) || defined(__APPLE__)
+#elif __GNUC__
 #define BSWAP_16(x) __builtin_bswap16(x)
 #define BSWAP_32(x) __builtin_bswap32(x)
 #define BSWAP_64(x) __builtin_bswap64(x)
 
 #else
-#define BSWAP_16(x) ((((x)&0xFF00)>>8)|(((x)&0x00FF)<<8))
-
-
-#define BSWAP_32(x) (((((x)&0xFF000000)>>24)|(((x)&0x000000FF)<<24))| \
-                    ((((x)&0x00FF0000)>>8)|(((x)&0x0000FF00)<<8)))
-
-
-#define BSWAP_64(x) (((((x)&0xFF00000000000000)>>56)|(((x)&0x00000000000000FF)<<56))| \
-                     ((((x)&0x00FF000000000000)>>40)|(((x)&0x000000000000FF00)<<40))| \
-                     ((((x)&0x0000FF0000000000)>>24)|(((x)&0x0000000000FF0000)<<24))| \
-                     ((((x)&0x000000FF00000000)>>8) |(((x)&0x00000000FF000000)<<8)))
-
-#endif /* _WIN32 / __WIIU__ / __APPLE__ */
+#error "Unknown Platform"
+#endif /* MSVC / GCC */
 
 
 #define FMT_STR_VARGS_EX(targetbuf, maxsize, written, fmt, lastarg) {     \

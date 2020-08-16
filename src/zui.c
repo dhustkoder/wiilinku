@@ -861,7 +861,7 @@ static uint8_t objs_buffer[ZUI_OBJS_BUFFER_MAX_SIZE];
 
 static int get_next_mem_aligned_value(int x)
 {
-	while ((x % MAX_ALIGNMENT_SIZE) != 0)
+	while ((x % WLU_MAX_ALIGNMENT_SIZE) != 0)
 		++x;
 	return x;
 }
@@ -885,7 +885,7 @@ static void* zui_obj_get(zui_obj_id_t id)
 	
 	void* ptr = objs_buffer + objs_idxs[id];
 	
-	WLU_ASSERT((((uintptr_t)ptr) % MAX_ALIGNMENT_SIZE) == 0);
+	WLU_ASSERT((((uintptr_t)ptr) % WLU_MAX_ALIGNMENT_SIZE) == 0);
 	
 	return ptr;
 }
@@ -1100,7 +1100,7 @@ void zui_term(void)
 zui_obj_id_t zui_text_create(struct vec2i origin)
 {
 	const zui_obj_id_t id = zui_obj_push(
-		sizeof(struct text_obj) + MAX_ALIGNMENT_SIZE
+		sizeof(struct text_obj) + WLU_MAX_ALIGNMENT_SIZE
 	);
 	struct text_obj* obj = zui_obj_get(id);
 	obj->origin = origin;

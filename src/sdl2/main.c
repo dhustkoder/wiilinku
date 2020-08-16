@@ -26,7 +26,7 @@ bool platform_init(void)
 	}
 
 	window = SDL_CreateWindow(
-		"WiiLinkU " WIILINKU_VER_STR, 
+		"WiiLinkU " WLU_VERSION_STR, 
 		SDL_WINDOWPOS_CENTERED,
 		SDL_WINDOWPOS_CENTERED,
 		ZUI_WIDTH,

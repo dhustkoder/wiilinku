@@ -84,7 +84,7 @@ static bool init_platform(void)
 	if (!log_init())
 		return false;
 
-	#ifdef WIILINKU_DEBUG
+	#ifdef WLU_DEBUG
 	log_info("Hello :), you are running a DEBUG build\n\n\n");
 	#else
 	log_info("Hello :), you are running a RELEASE build\n\n\n");
