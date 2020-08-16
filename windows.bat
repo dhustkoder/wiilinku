@@ -25,19 +25,21 @@ popd
 
 
 git describe --tags --abbrev=0 > %tmp%\%TMP_FILE_PREFIX%.txt
-if %errorLevel%==0 (set /P GITTAG=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITTAG="unkown")
+if %errorLevel%==0 (set /P GITTAG=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITTAG="")
 
 git rev-list -n 1 --abbrev-commit %GITTAG% > %tmp%\%TMP_FILE_PREFIX%.txt
-if %errorLevel%==0 (set /P GITTAG_HASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITTAG_HASH="unkown")
+if %errorLevel%==0 (set /P GITTAG_HASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITTAG_HASH="")
 
 git rev-parse --short HEAD > %tmp%\%TMP_FILE_PREFIX%.txt
-if %errorLevel%==0 (set /P GITHASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITHASH="unknown")
+if %errorLevel%==0 (set /P GITHASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITHASH="")
 
 set WLU_VERSION_STR=\"%GITTAG%\"
 if NOT %GITTAG_HASH%==%GITHASH% ( set WLU_VERSION_STR=%WLU_VERSION_STR%\"-%GITHASH%\" )
 
 git diff --quiet
 if NOT %errorLevel%==0 ( set WLU_VERSION_STR=%WLU_VERSION_STR%\"-dirty\" )
+
+if %GITTAG%=="" (set WLU_VERSION_STR="unknown-version")
 
 del %tmp%\%TMP_FILE_PREFIX%.*
 

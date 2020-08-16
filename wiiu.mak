@@ -20,6 +20,7 @@ include $(DEVKITPRO)/wut/share/wut_rules
 
 #check WLU_VERSION_STR
 
+
 GITTAG := $(shell git describe --tags --abbrev=0)
 
 GITTAG_HASH := $(shell git rev-list -n 1 --abbrev-commit $(GITTAG))
@@ -35,6 +36,10 @@ endif
 $(shell git diff --quiet)
 ifeq ($(.SHELLSTATUS), 1)
 	WLU_VERSION_STR:=$(WLU_VERSION_STR)-dirty
+endif
+
+ifeq ($(WLU_VERSION_STR),)
+	WLU_VERSION_STR:=unknown-version
 endif
 
 
