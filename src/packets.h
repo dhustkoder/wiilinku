@@ -6,7 +6,6 @@
 #define PING_PACKET_PORT           (7171)
 #define INPUT_PACKET_PORT          (7172)
 #define INPUT_FEEDBACK_PACKET_PORT (7173)
-#define MAX_PACKET_BLOCK_SIZE      (1400)
 #define PING_INTERVAL_SEC          (6)
 
 

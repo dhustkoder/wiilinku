@@ -1,5 +1,4 @@
 #include <string.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <coreinit/screen.h>
 #include <whb/libmanager.h>

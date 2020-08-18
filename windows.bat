@@ -33,21 +33,26 @@ if %errorLevel%==0 (set /P GITTAG_HASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set G
 git rev-parse --short HEAD > %tmp%\%TMP_FILE_PREFIX%.txt
 if %errorLevel%==0 (set /P GITHASH=<%tmp%\%TMP_FILE_PREFIX%.txt) else (set GITHASH="")
 
-set WLU_VERSION_STR=\"%GITTAG%\"
-if NOT %GITTAG_HASH%==%GITHASH% ( set WLU_VERSION_STR=%WLU_VERSION_STR%\"-%GITHASH%\" )
+set WLU_VERSION_STR=%GITTAG%
+if NOT %GITTAG_HASH%==%GITHASH% (set WLU_VERSION_STR=%WLU_VERSION_STR%-%GITHASH%)
 
 git diff --quiet
-if NOT %errorLevel%==0 ( set WLU_VERSION_STR=%WLU_VERSION_STR%\"-dirty\" )
+if NOT %errorLevel%==0 (set WLU_VERSION_STR=%WLU_VERSION_STR%-dirty)
 
 if %GITTAG%=="" (set WLU_VERSION_STR="unknown-version")
 
 del %tmp%\%TMP_FILE_PREFIX%.*
 
-
+set WLU_VERSION_STR=\"%WLU_VERSION_STR%\"
+@echo on 
+echo %WLU_VERSION_STR%
+@echo off
 
 
 REM CFLAGS SETUP
-set CDEFS=/D_CRT_SECURE_NO_WARNINGS /D_WINSOCK_DEPRECATED_NO_WARNINGS /DWLU_HOST /DWLU_VERSION_STR=%WLU_VERSION_STR%
+set CDEFS=/D_CRT_SECURE_NO_WARNINGS /D_WINSOCK_DEPRECATED_NO_WARNINGS /DWLU_HOST^
+          /DWLU_VERSION_STR=%WLU_VERSION_STR%
+
 set CDEFS_DEBUG=%CDEFS% /DDEBUG /DWLU_DEBUG 
 set CDEFS_RELEASE=%CDEFS% /DNDEBUG
 set INCLUDE_DIRS=/Isrc /Isrc\windows /I"externals\ViGEmClient\include"
