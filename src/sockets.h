@@ -16,8 +16,8 @@ typedef int socklen_t;
 #define WLU_SOCKET_WAIT_SEC 1
 #define WLU_SOCKET_ERROR SOCKET_ERROR
 #define WLU_INVALID_SOCKET INVALID_SOCKET
-// #define inet_aton(...) InetPtonW(AF_INET, __VA_ARGS__)
-#define inet_aton(ip, saddr) (saddr)->s_addr = inet_addr(ip)
+#define inet_aton(ip, saddr) InetPton(AF_INET, ip, (saddr))
+//#define inet_aton(ip, saddr) (saddr)->s_addr = inet_addr(ip)
 
 #elif defined(__WIIU__)
 
@@ -58,7 +58,7 @@ extern socket_t sockets_tcp_wait_client(short port, struct sockaddr_in* accepted
 extern socket_t sockets_tcp_connect_to_host(const char* ip, short port);
 #endif
 
-extern void sockets_close_socket(socket_t* socket);
+extern void sockets_close_socket(socket_t* sock);
 
 
 

@@ -11,6 +11,15 @@ static socket_t input_feedback_socket = WLU_INVALID_SOCKET;
 static bool connected = false;
 
 
+
+static void close_all_sockets(void)
+{
+	sockets_close_socket(&input_feedback_socket);
+	sockets_close_socket(&input_socket);
+	sockets_close_socket(&ping_socket);
+}
+
+
 bool connection_init(void)
 {
 	socket_lib_init();
@@ -20,16 +29,8 @@ bool connection_init(void)
 void connection_term(void)
 {
 	connected = false;
-
-	socketclose(input_feedback_socket);
-	socketclose(input_socket);
-	socketclose(ping_socket);
+	close_all_sockets();
 	socket_lib_finish();
-
-	ping_socket = WLU_INVALID_SOCKET;
-	input_socket = WLU_INVALID_SOCKET;
-	input_feedback_socket = WLU_INVALID_SOCKET;
-
 }
 
 bool connection_connect(const char* host_ip)
@@ -48,9 +49,9 @@ bool connection_connect(const char* host_ip)
 
 	connected = true;
 	return true;
+	
 Lfailed:
-	connection_term();
-	connection_init();
+	close_all_sockets();
 	return false;
 }
 
@@ -70,9 +71,8 @@ bool connection_receive_input_feedback_packet(struct input_feedback_packet* feed
 	if (!connected)
 		return false;
 
-	if (recv_packet(input_feedback_socket, feedback, sizeof *feedback)) {
+	if (recv_packet(input_feedback_socket, feedback, sizeof *feedback))
 		return true;
-	}
 
 	return false;
 }
@@ -85,6 +85,7 @@ bool connection_ping_host(void)
 		if (send_packet(ping_socket, &ping, sizeof ping)) {
 			return true;
 		} else {
+			close_all_sockets();
 			connected = false;
 			return false;
 		}

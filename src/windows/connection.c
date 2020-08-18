@@ -11,11 +11,18 @@ static char local_ip_buf[24] = "000.000.000.000\0";
 static struct sockaddr_in client_addr;
 
 
-static SOCKET ping_socket = INVALID_SOCKET;
-static SOCKET input_socket = INVALID_SOCKET;
-static SOCKET input_feedback_socket = INVALID_SOCKET;
+static SOCKET ping_socket = WLU_INVALID_SOCKET;
+static SOCKET input_socket = WLU_INVALID_SOCKET;
+static SOCKET input_feedback_socket = WLU_INVALID_SOCKET;
 static bool connected = false;
 
+
+static void close_all_sockets(void)
+{
+	sockets_close_socket(&input_socket);
+	sockets_close_socket(&input_feedback_socket);
+	sockets_close_socket(&ping_socket);
+}
 
 static bool setup_local_ip_buf(void)
 {
@@ -110,9 +117,7 @@ bool connection_wait_client(void)
 	return true;
 
 Lfailed:
-	sockets_close_socket(&ping_socket);
-	sockets_close_socket(&input_socket);
-	sockets_close_socket(&input_feedback_socket);
+	close_all_sockets();
 	return false;
 }
 
@@ -124,6 +129,7 @@ bool connection_ping_client(void)
 			return true;
 		} else {
 			log_debug("disconnected from: %s", inet_ntoa(client_addr.sin_addr));
+			close_all_sockets();
 			connected = false;
 			return false;
 		}
@@ -149,14 +155,7 @@ bool connection_init(void)
 
 void connection_term(void)
 {
-	closesocket(input_socket);
-	closesocket(input_feedback_socket);
-	closesocket(ping_socket);
-
-	ping_socket = INVALID_SOCKET;
-	input_socket = INVALID_SOCKET;
-	input_feedback_socket = INVALID_SOCKET;
-
+	close_all_sockets();
 	WSACleanup();
 }
 
