@@ -179,7 +179,6 @@ int CALLBACK WinMain(
 			Sleep(33 - (GetTickCount() - frametime));
 
 		if ((GetTickCount() - lasttick) >= 1000)  {
-			log_debug("UI THREAD FPS: %ld", framecnt);
 			framecnt = 0;
 			lasttick = GetTickCount();
 		}

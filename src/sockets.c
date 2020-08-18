@@ -25,12 +25,9 @@ static bool setup_socket(
 	int proto,
 	struct sockaddr_in* addr,
 	const char* ip,
-	unsigned short port
+	short port
 )
 {
-	if (*sock != WLU_INVALID_SOCKET)
-		sockets_close_socket(sock);
-
     *sock = socket(
     	AF_INET, 
     	proto == IPPROTO_UDP ? SOCK_DGRAM : SOCK_STREAM,
@@ -55,113 +52,105 @@ static bool setup_socket(
 }
 
 
-static bool init_recv_socket(
-	socket_t* sock,
-	int proto,
-	socket_t* client_sock,
-	struct sockaddr_in* accepted_addr,
-	short port
-)
-{
-	struct sockaddr_in address;
-	if (!setup_socket(sock, proto, &address, NULL, port))
-		return false;
 
-	if (bind(*sock, (const struct sockaddr*)&address, sizeof address) != 0) {
+#ifdef WLU_HOST
+
+static socket_t listener_sock = WLU_INVALID_SOCKET;
+
+socket_t sockets_tcp_wait_client(short port, struct sockaddr_in* accepted_addr)
+{
+	socket_t client_sock = WLU_INVALID_SOCKET;
+	struct sockaddr_in addr;
+
+	if (listener_sock != WLU_INVALID_SOCKET)
+		goto Laccept;
+
+	log_debug("creating tcp listener socket port: %d", (int)port);
+	
+	if (!setup_socket(&listener_sock, IPPROTO_TCP, &addr, NULL, port))
+		return WLU_INVALID_SOCKET;
+
+	if (bind(listener_sock, (struct sockaddr*)&addr, sizeof addr) != 0) {
 		log_debug("bind() failed: %d", WLU_SOCKET_GET_LAST_ERROR());
-		return false;
+		sockets_close_socket(&listener_sock);
+		return WLU_INVALID_SOCKET;
 	}
 
-	if (proto == IPPROTO_TCP && client_sock != NULL && accepted_addr != NULL) {
-		if (listen(*sock, 1) != 0) {
-			log_debug("listen() failed: %d", WLU_SOCKET_GET_LAST_ERROR());
-			return false;
-		}
-
-		if (*client_sock != WLU_INVALID_SOCKET) {
-			sockets_close_socket(client_sock);
-		}
-
-		socklen_t addrlen = sizeof *accepted_addr;
-		memset(accepted_addr, 0, addrlen);
-		*client_sock = accept(*sock, (struct sockaddr*)accepted_addr, &addrlen);
-		log_debug("connected to: %s", inet_ntoa(accepted_addr->sin_addr));
+	if (listen(listener_sock, 1) != 0) {
+		log_debug("listen() failed: %d", WLU_SOCKET_GET_LAST_ERROR());
+		sockets_close_socket(&listener_sock);
+		return WLU_INVALID_SOCKET;
 	}
 
-	return true;
+Laccept:
+	log_debug("waiting tcp client at port: %d", (int)port);
+	socklen_t addrlen = sizeof *accepted_addr;
+	memset(accepted_addr, 0, addrlen);
+	client_sock = accept(listener_sock, (struct sockaddr*)accepted_addr, &addrlen);
+	log_debug("connected to tcp client: %s", inet_ntoa(accepted_addr->sin_addr));
+    return client_sock;
 }
 
-static bool init_send_socket(socket_t* sock, int proto, const char* ip, short port)
-{
-	log_debug("trying to init send socket to %s", ip);
-	struct sockaddr_in host;
- 	if (!setup_socket(sock, proto, &host, ip, port))
- 		return false;
+#else
 
-	if (connect(*sock, (struct sockaddr*)&host, sizeof(host)) != 0) {
+socket_t sockets_tcp_connect_to_host(const char* ip, short port)
+{
+	log_debug("connecting to tcp host: %s:%d...", ip, (int)port);
+	socket_t sock = WLU_INVALID_SOCKET;
+	struct sockaddr_in addr;
+	if (!setup_socket(&sock, IPPROTO_TCP, &addr, ip, port)) {
+		return WLU_INVALID_SOCKET;
+	}
+
+	if (connect(sock, (struct sockaddr*)&addr, sizeof addr) != 0) {
 		log_debug("connect() failed: %d", WLU_SOCKET_GET_LAST_ERROR());
-		return false;
-	}
-	
-	return true;
-}
-
-
-
-socket_t sockets_udp_send_create(const char* ip, short port)
-{
-	socket_t sock;
-	
-	if (!init_send_socket(&sock, IPPROTO_UDP, ip, port)) {
 		sockets_close_socket(&sock);
 		return WLU_INVALID_SOCKET;
 	}
 
+	log_debug("done");
+	return sock;
+}
+
+#endif
+
+socket_t sockets_udp_send_create(const char* ip, short port)
+{
+	log_debug("creating udp send socket to: %s:%d...", ip, (int)port);
+
+	socket_t sock = WLU_INVALID_SOCKET;
+
+	struct sockaddr_in addr;
+ 	if (!setup_socket(&sock, IPPROTO_UDP, &addr, ip, port))
+ 		return WLU_INVALID_SOCKET;
+
+	if (connect(sock, (struct sockaddr*)&addr, sizeof addr) != 0) {
+		log_debug("connect() failed: %d", WLU_SOCKET_GET_LAST_ERROR());
+		sockets_close_socket(&sock);
+		return WLU_INVALID_SOCKET;
+	}
+
+	log_debug("done");
 	return sock;
 }
 
 socket_t sockets_udp_recv_create(short port)
 {
-	socket_t sock;
+	socket_t sock = WLU_INVALID_SOCKET;
+	struct sockaddr_in addr;
 
-	if (!init_recv_socket(&sock, IPPROTO_UDP, NULL, NULL, port)) {
+	log_debug("creating udp recv socket port: %d...", (int)port);
+	
+	if (!setup_socket(&sock, IPPROTO_UDP, &addr, NULL, port))
+		return WLU_INVALID_SOCKET;
+
+	if (bind(sock, (struct sockaddr*)&addr, sizeof addr) != 0) {
+		log_debug("bind() failed: %d", WLU_SOCKET_GET_LAST_ERROR());
 		sockets_close_socket(&sock);
 		return WLU_INVALID_SOCKET;
 	}
 
-	return sock;
-}
-
-socket_t sockets_tcp_wait_client(short port, struct sockaddr_in* accepted_addr)
-{
-	socket_t listener_sock;
-	socket_t client_sock;
-	const bool success = init_recv_socket(
-		&listener_sock,
-		IPPROTO_TCP,
-    	&client_sock,
-    	accepted_addr,
-		port
-    );
-
-    sockets_close_socket(&listener_sock);
-
-    if (!success) {
-    	sockets_close_socket(&client_sock);
-    	return WLU_INVALID_SOCKET;
-    }
-
-    return client_sock;
-}
-
-socket_t sockets_tcp_connect_to_host(const char* ip, short port)
-{
-	socket_t sock;
-	if (!init_send_socket(&sock, IPPROTO_TCP, ip, port)) {
-		sockets_close_socket(&sock);
-		return WLU_INVALID_SOCKET;
-	}
-
+	log_debug("done");
 	return sock;
 }
 

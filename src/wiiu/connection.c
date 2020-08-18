@@ -49,9 +49,8 @@ bool connection_connect(const char* host_ip)
 	connected = true;
 	return true;
 Lfailed:
-	sockets_close_socket(&ping_socket);
-	sockets_close_socket(&input_socket);
-	sockets_close_socket(&input_feedback_socket);
+	connection_term();
+	connection_init();
 	return false;
 }
 

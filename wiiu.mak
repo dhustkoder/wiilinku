@@ -59,7 +59,7 @@ INCLUDES	:=	src src/wiiu
 #-------------------------------------------------------------------------------
 # options for code generation
 #-------------------------------------------------------------------------------
-CFLAGS   := -D__WIIU__ -D__WUT__ -DWIIUPCX_CLIENT \
+CFLAGS   := -D__WIIU__ -D__WUT__ -DWLU_CLIENT \
 	-DWLU_VERSION_STR=\"$(WLU_VERSION_STR)\" \
 	$(INCLUDE) $(MACHDEP) -Wall -Wextra  -ffunction-sections
 
