@@ -11,6 +11,16 @@
 #endif
 
 
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef int8_t s8;
+typedef int16_t s16;
+typedef int32_t s32;
+
+
+
+
 #define WLU_MAX_ALIGNMENT_SIZE sizeof(uintptr_t)
 
 
@@ -32,11 +42,11 @@
 #elif defined(__WIIU__)
 
 #include <coreinit/thread.h>
-#include "wiiu/video.h"
+#include "log.h"
 
 #define WLU_ASSERT(cond) {                                           \
 	if (!(cond)) {                                                   \
-		video_log_printf("ASSERT FAILED %s:%d", __FILE__, __LINE__); \
+		log_info("ASSERT FAILED %s:%d", __FILE__, __LINE__);         \
 		OSSleepTicks(OSSecondsToTicks(10));                          \
 	}                                                                \
 }

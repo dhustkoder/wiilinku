@@ -6,34 +6,30 @@
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include "log.h"
 
 typedef SOCKET socket_t;
 typedef int socklen_t;
 
+#define inet_aton(ip, saddr)        InetPton(AF_INET, ip, (saddr))
 #define WLU_CLOSE_SOCKET(sock)      closesocket(sock)
 #define WLU_SOCKET_GET_LAST_ERROR() WSAGetLastError()
 #define WLU_SOCKET_WAIT_SEC 1
 #define WLU_SOCKET_ERROR SOCKET_ERROR
 #define WLU_INVALID_SOCKET INVALID_SOCKET
-#define inet_aton(ip, saddr) InetPton(AF_INET, ip, (saddr))
-//#define inet_aton(ip, saddr) (saddr)->s_addr = inet_addr(ip)
 
 #elif defined(__WIIU__)
 
 #include <coreinit/memdefaultheap.h>
 #include <coreinit/time.h>
 #include <nsysnet/socket.h>
-#include "video.h"
 
 typedef int socket_t;
 
-#define WLU_SOCKET_WAIT_SEC 0
-#define WLU_INVALID_SOCKET (-1)
-#define WLU_CLOSE_SOCKET(sock) socketclose(sock)
+#define WLU_SOCKET_WAIT_SEC         (0)
+#define WLU_INVALID_SOCKET          (-1)
+#define WLU_CLOSE_SOCKET(sock)      socketclose(sock)
 #define WLU_SOCKET_GET_LAST_ERROR() (0)
 #define WLU_SOCKET_ERROR SO_ERROR
-#define log_debug(...) video_log_printf(__VA_ARGS__)
 
 
 #else

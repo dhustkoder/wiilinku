@@ -64,9 +64,9 @@ CFLAGS   := -D__WIIU__ -D__WUT__ -DWLU_CLIENT \
 	$(INCLUDE) $(MACHDEP) -Wall -Wextra  -ffunction-sections
 
 ifeq ($(BUILD_TYPE),Release)
-CFLAGS	 +=	-O2 -DNDEBUG
+CFLAGS	 +=	-O2 -DNDEBUG -DWLU_RELEASE
 else
-CFLAGS   += -O0 -g -DDEBUG -DWIILINKU_DEBUG
+CFLAGS   += -O0 -g -DDEBUG -DWLU_DEBUG
 endif
 
 CXXFLAGS := $(CFLAGS)

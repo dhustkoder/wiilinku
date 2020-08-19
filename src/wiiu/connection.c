@@ -1,5 +1,4 @@
 
-#include "video.h"
 #include "input.h"
 #include "connection.h"
 #include "sockets.h"
@@ -23,6 +22,7 @@ static void close_all_sockets(void)
 bool connection_init(void)
 {
 	socket_lib_init();
+	
 	return true;
 }
 

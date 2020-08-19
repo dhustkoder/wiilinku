@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include "utils.h"
 
-#define ZUI_WIDTH  (720)
-#define ZUI_HEIGHT (480)
+#define ZUI_WIDTH  (640)
+#define ZUI_HEIGHT (360)
 
 #define ZUI_OBJS_BUFFER_MAX_SIZE (512)
 #define ZUI_MAX_OBJS             (16)

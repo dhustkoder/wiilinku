@@ -8,7 +8,7 @@
 #include "packets.h"
 #include "connection.h"
 #include "input.h"
-#include "video.h"
+#include "log.h"
 
 
 static VPADReadError verror;
@@ -23,7 +23,7 @@ static uint8_t rumble_pattern[120];
 
 static void wpad_connection_callback(WPADChan chan, int32_t status)
 {
-	video_log_printf(
+	log_debug(
 		"UPDATED WPAD[%d] = STATUS %d",
 		(int)chan,
 		(int)status
@@ -76,11 +76,12 @@ void input_term(void)
 void input_update(struct input_packet* input)
 {	
 	VPADRead(VPAD_CHAN_0, &vpad, 1, &verror);
+	VPADGetTPCalibratedPoint(VPAD_CHAN_0, &vpad.tpNormal, &vpad.tpNormal);
 	
 	if (verror != VPAD_READ_SUCCESS) {
 	
 		if (verror != VPAD_READ_NO_SAMPLES) {
-			video_log_printf("VPADRead failed, reason: %d", verror);
+			log_debug("VPADRead failed, reason: %d", verror);
 		}
 	}
 

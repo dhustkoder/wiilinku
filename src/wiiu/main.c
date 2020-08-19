@@ -4,20 +4,13 @@
 #include <coreinit/thread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <whb/log.h>
+#include <whb/log_udp.h>
 #include "connection.h"
 #include "input.h"
-#include "video.h"
+#include "gui.h"
 #include "utils.h"
-
-
-static const char* logo_ascii =
-" __        __  _   _   _       _           _      _   _      \n"
-" \\ \\      / / (_) (_) | |     (_)  _ __   | | __ | | | |   \n"
-"  \\ \\ /\\ / /  | | | | | |     | | | '_ \\  | |/ / | | | | \n"
-"   \\ V  V /   | | | | | |___  | | | | | | |   <  | |_| |    \n"
-"    \\_/\\_/    |_| |_| |_____| |_| |_| |_| |_|\\_\\  \\___/ \n"
-"                                            "WLU_VERSION_STR"\n";
-                                                                       
+#include "log.h"
 
 
 static volatile bool terminate_threads = false;
@@ -36,17 +29,17 @@ static int connection_state_manager_thread(
 			OSSleepTicks(OSSecondsToTicks(PING_INTERVAL_SEC));
 
 			if (!connection_ping_host()) {
-				video_log_printf("disconnected");
+				log_info("disconnected");
 			}
 
 		} else {
 
 			if (entered_ip != NULL) {
-				video_log_printf("trying to connect...");
+				log_info("trying to connect...");
 				if (connection_connect((char*)entered_ip)) {
-					video_log_printf("connected");
+					log_info("connected");
 				} else {
-					video_log_printf("failed to connect");
+					log_info("failed to connect");
 					entered_ip = NULL;
 				}
 			}
@@ -89,18 +82,20 @@ static int input_manager_thread(
 static bool platform_init(void)
 {
 	WHBProcInit();
+	WHBLogUdpInit();
+
 	input_init();
 
-	if (!video_init())
+	if (!gui_init())
 		return false;
 
 	if (!connection_init())
 		return false;
 
 	#ifdef WLU_DEBUG
-	video_log_printf("you are running a debug build");
+	log_info("you are running a debug build");
 	#else
-	video_log_printf("you are running a release build");
+	log_info("you are running a release build");
 	#endif
 
 	OSRunThread(
@@ -127,10 +122,11 @@ static void platform_term(void)
 
 	connection_term();
 	
-	video_term();
+	gui_term();
 
 	input_term();
 
+	WHBLogUdpDeinit();
 	WHBProcShutdown();
 }
 
@@ -139,65 +135,16 @@ int main(void)
 {
 	if (!platform_init())
 		return EXIT_FAILURE;
-	
-	char ipbuf[24] = "192.168.000.000\0";
-	const int ip_cur_pos_table[12] = { 0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14 };
-	int ip_cur_pos = 0;
 
-	VPADStatus vpad;
-	memset(&vpad, 0, sizeof(VPADStatus));
+	while (WHBProcIsRunning()) {
 
-	for (;;) {
-		input_fetch_vpad(&vpad);
+		OSTick t = OSGetSystemTick();
 
-		if (vpad.trigger&VPAD_BUTTON_HOME)
+		if (!gui_update(&entered_ip))
 			break;
 
-		if (!connection_is_connected()) {
-			if (vpad.trigger&VPAD_BUTTON_RIGHT && ip_cur_pos < 11) {
-				++ip_cur_pos;
-			} else if (vpad.trigger&VPAD_BUTTON_LEFT && ip_cur_pos > 0) {
-				--ip_cur_pos;
-			}
+		log_debug("%d MS PER FRAME", OSTicksToMilliseconds(OSGetSystemTick() - t));
 
-			if (vpad.trigger&VPAD_BUTTON_UP && ipbuf[ip_cur_pos_table[ip_cur_pos]] < '9') {
-				++ipbuf[ip_cur_pos_table[ip_cur_pos]];
-			} else if (vpad.trigger&VPAD_BUTTON_DOWN && ipbuf[ip_cur_pos_table[ip_cur_pos]] > '0') {
-				--ipbuf[ip_cur_pos_table[ip_cur_pos]];
-			}
-
-			if (vpad.trigger&VPAD_BUTTON_PLUS) {
-				entered_ip = ipbuf;
-			}
-		}
-
-		video_render_clear();
-		video_render_text(0, 0, logo_ascii);
-
-		
-		video_render_text_fmt(0, 6, "Enter IP: %s", ipbuf);
-		video_render_text(10 + ip_cur_pos_table[ip_cur_pos], 7, "^");
-		video_render_text_aligned(0, 8,
-			"EXIT      = HOME\n"
-			"CONNECT   = +\n"
-			"IP SELECT = DPAD LEFT RIGHT UP DOWN\n"
-		);
-
-		video_render_text_aligned_fmt(45, 8,
-			" -- GAMEPAD --\n"
-			"BTNS: %.8X\n"
-			"RSX: %.2f\n"
-			"RSY: %.2f\n"
-			"LSX: %.2f\n"
-			"LSY: %.2f\n",
-			vpad.hold,
-			vpad.rightStick.x,
-			vpad.rightStick.y,
-			vpad.leftStick.x,
-			vpad.leftStick.y
-		);
-
-		video_render_flip();
 	}
 
 	platform_term();

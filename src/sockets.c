@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "sockets.h"
+#include "log.h"
 
 
 
