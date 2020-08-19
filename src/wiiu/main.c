@@ -92,12 +92,6 @@ static bool platform_init(void)
 	if (!connection_init())
 		return false;
 
-	#ifdef WLU_DEBUG
-	log_info("you are running a debug build");
-	#else
-	log_info("you are running a release build");
-	#endif
-
 	OSRunThread(
 		OSGetDefaultThread(0),
 		input_manager_thread,
@@ -138,10 +132,11 @@ int main(void)
 
 	while (WHBProcIsRunning()) {
 
-		OSTick t = OSGetSystemTick();
+		// OSTick t = OSGetSystemTick();
 
-		if (!gui_update(&entered_ip))
+		if (!gui_update(&entered_ip)) {
 			break;
+		}
 
 		// log_debug("%d MS PER FRAME", OSTicksToMilliseconds(OSGetSystemTick() - t));
 

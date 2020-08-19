@@ -46,6 +46,7 @@ endif
 ifeq ($(BUILD_TYPE),Release)
 OUTPUTDIR    := wiiu_release_build
 else
+WLU_VERSION_STR:=$(WLU_VERSION_STR)-debug
 BUILD_TYPE   = Debug
 OUTPUTDIR    := wiiu_debug_build
 endif

@@ -3,8 +3,13 @@
 #include <stdint.h>
 #include "utils.h"
 
+#ifdef __WIIU__
+#define ZUI_WIDTH  (426)
+#define ZUI_HEIGHT (240)
+#elif defined(_WIN32)
 #define ZUI_WIDTH  (640)
 #define ZUI_HEIGHT (360)
+#endif
 
 #define ZUI_OBJS_BUFFER_MAX_SIZE (512)
 #define ZUI_MAX_OBJS             (16)

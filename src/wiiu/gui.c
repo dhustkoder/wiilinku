@@ -1,6 +1,7 @@
 #include <gfd.h>
 #include <gx2/draw.h>
 #include <gx2/shaders.h>
+#include <gx2/swap.h>
 #include <gx2/mem.h>
 #include <gx2/registers.h>
 #include <gx2r/draw.h>
@@ -75,15 +76,60 @@ struct gui_text gui_header_txts[] = {
 	},
 	{
 		.origin = { .x = ZUI_WIDTH / 2, .y = 86 },
-		.str = "Not Connected"
+		.str = "Connection Status: Not Connected"
 	},
 	{
 		.origin = { .x = ZUI_WIDTH / 2, .y = ZUI_HEIGHT / 2},
-		.str = "SELECT IP: DPAD UP DOWN LEFT RIGHT\n"
-		       "CONNECT: +\n"
-		       "EXIT: HOME BUTTON\n"
+		.str = "SELECT IP: UP DOWN LEFT RIGHT\n"
+		       "CONNECT:   +\n"
+		       "EXIT:      HOME BUTTON\n"
+	},
+	{
+		.origin = { .x = ZUI_WIDTH / 2, .y = (ZUI_HEIGHT / 2) + 50},
+		.str = "              !!  Remember  !!              \n"
+		       "   You need the Desktop App to use WiiLinkU \n"
+		       "        Get it at: https://git.io/JJAo9     "
 	}
 };
+
+
+static void gui_render_flush(void)
+{	
+	WHBGfxBeginRender();
+
+	WHBGfxBeginRenderTV();
+	
+	WHBGfxClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+	GX2SetFetchShader(&group.fetchShader);
+	GX2SetVertexShader(group.vertexShader);
+	GX2SetPixelShader(group.pixelShader);
+	GX2RSetAttributeBuffer(&position_buffer, 0, position_buffer.elemSize, 0);
+	GX2RSetAttributeBuffer(&tex_coord_buffer, 1, tex_coord_buffer.elemSize, 0);
+
+	GX2SetPixelTexture(&texture, group.pixelShader->samplerVars[0].location);
+	GX2SetPixelSampler(&sampler, group.pixelShader->samplerVars[0].location);
+	GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, 4, 0, 1);
+	
+	WHBGfxFinishRenderTV();
+
+	WHBGfxBeginRenderDRC();
+
+	WHBGfxClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	GX2SetFetchShader(&group.fetchShader);
+	GX2SetVertexShader(group.vertexShader);
+	GX2SetPixelShader(group.pixelShader);
+	GX2RSetAttributeBuffer(&position_buffer, 0, position_buffer.elemSize, 0);
+	GX2RSetAttributeBuffer(&tex_coord_buffer, 1, tex_coord_buffer.elemSize, 0);
+
+	GX2SetPixelTexture(&texture, group.pixelShader->samplerVars[0].location);
+	GX2SetPixelSampler(&sampler, group.pixelShader->samplerVars[0].location);
+	GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, 4, 0, 1);
+
+	WHBGfxFinishRenderDRC();
+
+	WHBGfxFinishRender();
+}
 
 
 bool gui_init(void)
@@ -148,13 +194,11 @@ bool gui_init(void)
 
 	texture.surface.image = MEMAllocFromDefaultHeapEx(texture.surface.imageSize, texture.surface.alignment);
 
-	log_info("texture width: %d", texture.surface.width);
-	log_info("texture height: %d", texture.surface.height);
-	log_info("texture pitch: %d", texture.surface.pitch);
+	log_debug("texture width: %d", texture.surface.width);
+	log_debug("texture height: %d", texture.surface.height);
+	log_debug("texture pitch: %d", texture.surface.pitch);
 
-	GX2Invalidate(GX2_INVALIDATE_MODE_CPU_TEXTURE, texture.surface.image, texture.surface.imageSize);
-
-	GX2InitSampler(&sampler, GX2_TEX_CLAMP_MODE_WRAP, GX2_TEX_XY_FILTER_MODE_LINEAR);
+	GX2InitSampler(&sampler, GX2_TEX_CLAMP_MODE_CLAMP, GX2_TEX_XY_FILTER_MODE_LINEAR);
 
 	for (int i = 0; i < (sizeof(gui_header_txts)/sizeof(gui_header_txts[0])); ++i) {
 		gui_header_txts[i].id = zui_text_create(gui_header_txts[i].origin);
@@ -181,10 +225,8 @@ bool gui_update(const char** ip)
 {
 	input_fetch_vpad(&vpad);
 
-	if (vpad.trigger&VPAD_BUTTON_HOME) {
+	if (vpad.trigger&VPAD_BUTTON_HOME)
 		return false;
-	}
-
 
 	if (!connection_is_connected()) {
 
@@ -196,30 +238,35 @@ bool gui_update(const char** ip)
 			--ip_cur_pos;
 		}
 
+		ipcurs[ip_cur_pos_table[ip_cur_pos]] = '^';
+
+
 		if (vpad.trigger&VPAD_BUTTON_UP && ipbuf[ip_cur_pos_table[ip_cur_pos]] < '9') {
 			++ipbuf[ip_cur_pos_table[ip_cur_pos]];
 		} else if (vpad.trigger&VPAD_BUTTON_DOWN && ipbuf[ip_cur_pos_table[ip_cur_pos]] > '0') {
 			--ipbuf[ip_cur_pos_table[ip_cur_pos]];
 		}
 
-		if (vpad.trigger&VPAD_BUTTON_PLUS) {
-			*ip = ipbuf;
-		}
-
-		ipcurs[ip_cur_pos_table[ip_cur_pos]] = '^';
+		
 		zui_text_set(gui_header_txts[2].id, ipcurs);
 		zui_text_draw(gui_header_txts[2].id);
 
 		zui_text_set(gui_header_txts[1].id, ipbuf);
 		zui_text_draw(gui_header_txts[1].id);
 
-		zui_text_set(gui_header_txts[3].id, "Connection Status: Not Connected");
-		zui_text_draw(gui_header_txts[3].id);
+		if (vpad.trigger&VPAD_BUTTON_PLUS && *ip == NULL) {
+			*ip = ipbuf;
+			zui_text_set(gui_header_txts[3].id, "Connection Status: Connecting.......");
+			zui_text_draw(gui_header_txts[3].id);
+		} else if (*ip == NULL) {
+			zui_text_set(gui_header_txts[3].id, "Connection Status: Not Connected");
+			zui_text_draw(gui_header_txts[3].id);
+		}
+
 	} else {
 		zui_text_set(gui_header_txts[3].id, "Connection Status: Connected");
 		zui_text_draw(gui_header_txts[3].id);
 	}
-
 
 	if (zui_update()) {
 		zui_render(zui_fb);
@@ -236,41 +283,7 @@ bool gui_update(const char** ip)
 	}
 
 
-	// Render!
-	WHBGfxBeginRender();
-
-	WHBGfxBeginRenderTV();
-	
-	WHBGfxClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-	GX2SetFetchShader(&group.fetchShader);
-	GX2SetVertexShader(group.vertexShader);
-	GX2SetPixelShader(group.pixelShader);
-	GX2RSetAttributeBuffer(&position_buffer, 0, position_buffer.elemSize, 0);
-	GX2RSetAttributeBuffer(&tex_coord_buffer, 1, tex_coord_buffer.elemSize, 0);
-
-	GX2SetPixelTexture(&texture, group.pixelShader->samplerVars[0].location);
-	GX2SetPixelSampler(&sampler, group.pixelShader->samplerVars[0].location);
-	GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, 4, 0, 1);
-	
-	WHBGfxFinishRenderTV();
-
-	WHBGfxBeginRenderDRC();
-
-	WHBGfxClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	GX2SetFetchShader(&group.fetchShader);
-	GX2SetVertexShader(group.vertexShader);
-	GX2SetPixelShader(group.pixelShader);
-	GX2RSetAttributeBuffer(&position_buffer, 0, position_buffer.elemSize, 0);
-	GX2RSetAttributeBuffer(&tex_coord_buffer, 1, tex_coord_buffer.elemSize, 0);
-
-	GX2SetPixelTexture(&texture, group.pixelShader->samplerVars[0].location);
-	GX2SetPixelSampler(&sampler, group.pixelShader->samplerVars[0].location);
-	GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, 4, 0, 1);
-
-	WHBGfxFinishRenderDRC();
-
-	WHBGfxFinishRender();
+	gui_render_flush();
 
 	return true;
 }

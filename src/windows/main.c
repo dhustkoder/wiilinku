@@ -84,12 +84,6 @@ static bool init_platform(void)
 	if (!log_init())
 		return false;
 
-	#ifdef WLU_DEBUG
-	log_info("Hello :), you are running a DEBUG build\n\n\n");
-	#else
-	log_info("Hello :), you are running a RELEASE build\n\n\n");
-	#endif
-
 	if (!connection_init())
 		return false;
 
