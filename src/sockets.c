@@ -16,7 +16,7 @@ static bool sock_wait_for_data(socket_t sock, int sec, int usec)
 		.tv_usec = usec
 	};
 
-	int retval = select(0, &readfd, NULL, NULL, &timer);
+	int retval = select(sock + 1, &readfd, NULL, NULL, &timer);
 
 	return retval > 0;
 }

@@ -143,7 +143,7 @@ int main(void)
 		if (!gui_update(&entered_ip))
 			break;
 
-		log_debug("%d MS PER FRAME", OSTicksToMilliseconds(OSGetSystemTick() - t));
+		// log_debug("%d MS PER FRAME", OSTicksToMilliseconds(OSGetSystemTick() - t));
 
 	}
 
