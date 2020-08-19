@@ -6,9 +6,8 @@ Devs Discord: [https://discord.gg/Nq57FcG](https://discord.gg/Nq57FcG)
 Connects the WiiU Gamepad and Wiimotes to Windows PC as XBOX Controller
 
 Planned Features:
-- Game Streaming to WiiU TV/Gamepad (if possible)
-- Save configurations
-- Graphical UI on WiiU / Better GUI on Desktops
+- Game Streaming to WiiU TV/Gamepad
+- Desktop Keyboard on Gamepad Screen
 - Button Mapping
 - Linux Support
 
