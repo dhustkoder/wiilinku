@@ -981,11 +981,6 @@ static struct vec2i get_text_required_buffer_size(const char* str)
 	return get_text_require_buffer_size_ex(linelen, lines);
 }
 
-static int get_text_max_str_size(int linelen, int lines)
-{
-	return (linelen * lines) + lines;
-}
-
 static void clean_rect(struct recti rect, struct rgb24* fb)
 {
 	for (int i = 0; i < rect.size.y; ++i) {
