@@ -4,6 +4,8 @@
 #include "log.h"
 
 
+#define MAX_PACKET_BLOCK_SIZE (1400)
+
 
 static bool sock_wait_for_data(socket_t sock, int sec, int usec) 
 {
@@ -16,7 +18,8 @@ static bool sock_wait_for_data(socket_t sock, int sec, int usec)
 		.tv_usec = usec
 	};
 
-	int retval = select(sock + 1, &readfd, NULL, NULL, &timer);
+
+	const int retval = select((int)sock + 1, &readfd, NULL, NULL, &timer);
 
 	return retval > 0;
 }
@@ -26,7 +29,7 @@ static bool setup_socket(
 	int proto,
 	struct sockaddr_in* addr,
 	const char* ip,
-	short port
+	u16 port
 )
 {
     *sock = socket(
@@ -58,7 +61,7 @@ static bool setup_socket(
 
 static socket_t listener_sock = WLU_INVALID_SOCKET;
 
-socket_t sockets_tcp_wait_client(short port, struct sockaddr_in* accepted_addr)
+socket_t sockets_tcp_wait_client(u16 port, struct sockaddr_in* accepted_addr)
 {
 	socket_t client_sock = WLU_INVALID_SOCKET;
 	struct sockaddr_in addr;
@@ -94,7 +97,7 @@ Laccept:
 
 #else
 
-socket_t sockets_tcp_connect_to_host(const char* ip, short port)
+socket_t sockets_tcp_connect_to_host(const char* ip, u16 port)
 {
 	log_debug("connecting to tcp host: %s:%d...", ip, (int)port);
 	socket_t sock = WLU_INVALID_SOCKET;
@@ -115,7 +118,7 @@ socket_t sockets_tcp_connect_to_host(const char* ip, short port)
 
 #endif
 
-socket_t sockets_udp_send_create(const char* ip, short port)
+socket_t sockets_udp_send_create(const char* ip, u16 port)
 {
 	log_debug("creating udp send socket to: %s:%d...", ip, (int)port);
 
@@ -135,7 +138,7 @@ socket_t sockets_udp_send_create(const char* ip, short port)
 	return sock;
 }
 
-socket_t sockets_udp_recv_create(short port)
+socket_t sockets_udp_recv_create(u16 port)
 {
 	socket_t sock = WLU_INVALID_SOCKET;
 	struct sockaddr_in addr;

@@ -1,6 +1,6 @@
 #ifndef WIILINKU_PACKETS_H_
 #define WIILINKU_PACKETS_H_
-#include "utils.h"
+#include "base_defs.h"
 
 
 #define PING_PACKET_PORT           (7171)
@@ -82,16 +82,16 @@ enum wiimote_btn {
 
 
 struct wiiu_gamepad {
-	uint32_t btns;
-	int16_t lsx;
-	int16_t lsy;
-	int16_t rsx;
-	int16_t rsy;
+	u32 btns;
+	s16 lsx;
+	s16 lsy;
+	s16 rsx;
+	s16 rsy;
 };
 
 
 struct wiimote {
-	uint32_t btns;
+	u32 btns;
 };
 
 typedef uint8_t input_packet_flags_t;
@@ -117,11 +117,11 @@ struct input_feedback_packet {
 static inline void input_packet_reorder(struct input_packet* p)
 {
 	if (p->flags&INPUT_PACKET_FLAG_GAMEPAD) {
-		const uint32_t btns = p->gamepad.btns;
-		const int16_t rsx = p->gamepad.rsx;
-		const int16_t rsy = p->gamepad.rsy;
-		const int16_t lsx = p->gamepad.lsx;
-		const int16_t lsy = p->gamepad.lsy;
+		const u32 btns = p->gamepad.btns;
+		const s16 rsx = p->gamepad.rsx;
+		const s16 rsy = p->gamepad.rsy;
+		const s16 lsx = p->gamepad.lsx;
+		const s16 lsy = p->gamepad.lsy;
 
 		p->gamepad.btns = BSWAP_32(btns);
 
@@ -144,7 +144,7 @@ static inline void input_packet_reorder(struct input_packet* p)
 
 	for (int i = 0; i < 4; ++i) {
 		if (p->flags&wiimote_flags[i]) {
-			const uint32_t btns = p->wiimotes[i].btns;
+			const u32 btns = p->wiimotes[i].btns;
 			p->wiimotes[i].btns = BSWAP_32(btns); 
 		}
 	}

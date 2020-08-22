@@ -1,6 +1,6 @@
 #ifndef WIILINKU_SOCKETS_H_
 #define WIILINKU_SOCKETS_H_
-
+#include "base_defs.h"
 
 #ifdef _WIN32
 
@@ -36,22 +36,18 @@ typedef int socket_t;
 #error "Unknown Platform"
 #endif
 
-#include <stdbool.h>
-
-
-#define MAX_PACKET_BLOCK_SIZE (1400)
 
 
 extern bool send_packet(socket_t sock, const void* data, int size);
 extern bool recv_packet(socket_t sock, void* data, int size);
 
-extern socket_t sockets_udp_send_create(const char* ip, short port);
-extern socket_t sockets_udp_recv_create(short port);
+extern socket_t sockets_udp_send_create(const char* ip, u16 port);
+extern socket_t sockets_udp_recv_create(u16 port);
 
 #ifdef WLU_HOST
-extern socket_t sockets_tcp_wait_client(short port, struct sockaddr_in* accepted_addr);
+extern socket_t sockets_tcp_wait_client(u16 port, struct sockaddr_in* accepted_addr);
 #else
-extern socket_t sockets_tcp_connect_to_host(const char* ip, short port);
+extern socket_t sockets_tcp_connect_to_host(const char* ip, u16 port);
 #endif
 
 extern void sockets_close_socket(socket_t* sock);
