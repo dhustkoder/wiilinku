@@ -82,7 +82,9 @@ static int input_manager_thread(
 static bool platform_init(void)
 {
 	WHBProcInit();
-	WHBLogUdpInit();
+	
+	if (!log_init())
+		return false;
 
 	input_init();
 
@@ -120,7 +122,7 @@ static void platform_term(void)
 
 	input_term();
 
-	WHBLogUdpDeinit();
+	log_term();
 	WHBProcShutdown();
 }
 

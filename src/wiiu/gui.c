@@ -84,6 +84,16 @@ bool gui_update(const char** ip)
 {
 	input_fetch_vpad(&vpad);
 
+	if (vpad.tpNormal.touched) {
+		log_debug(
+			"TOUCH INFO: \n"
+			"X : %d\n"
+			"Y : %d\n",
+			(int)vpad.tpNormal.x,
+			(int)vpad.tpNormal.y
+		);
+	}
+
 	if (vpad.trigger&VPAD_BUTTON_HOME)
 		return false;
 

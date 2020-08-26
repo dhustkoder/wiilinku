@@ -1,4 +1,5 @@
 @echo off
+set EXENAME=WiiLinkU.exe
 set BUILD_TYPE=%1
 set RUN_AFTER_BUILD="%2"=="run"
 if not %RUN_AFTER_BUILD% set RUN_AFTER_BUILD="%1"=="run"
@@ -94,7 +95,7 @@ goto compile
 if not exist %BUILD_DIR% mkdir %BUILD_DIR%
 
 @echo on
-%CC% %CFLAGS% %SRC% /Fe%BUILD_DIR%\wiilinku.exe /link %LDFLAGS%
+%CC% %CFLAGS% %SRC% /Fe%BUILD_DIR%\%EXENAME% /link %LDFLAGS%
 @echo off
 
 set ERROR=%errorLevel%
@@ -102,5 +103,5 @@ set ERROR=%errorLevel%
 :clean
 del *.obj *.pdb
 
-if  %ERROR%==0 ( if %RUN_AFTER_BUILD% .\%BUILD_DIR%\wiilinku.exe )
+if  %ERROR%==0 ( if %RUN_AFTER_BUILD% .\%BUILD_DIR%\%EXENAME% )
 

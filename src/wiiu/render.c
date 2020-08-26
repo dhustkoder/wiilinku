@@ -19,6 +19,7 @@
 #include "zui.h"
 #include "texture_shader.h"
 #include "render.h"
+#include "log.h"
 
 
 static const float position_vb[] = {
