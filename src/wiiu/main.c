@@ -135,7 +135,6 @@ int main(void)
 	while (WHBProcIsRunning()) {
 
 		// OSTick t = OSGetSystemTick();
-
 		if (!gui_update(&entered_ip)) {
 			break;
 		}

@@ -29,6 +29,7 @@ static void wpad_connection_callback(WPADChan chan, int32_t status)
 		(int)status
 	);
 
+	WLU_ASSERT(chan >= 0 && chan <= 3);
 	kpad_connected[chan] = status == 0 ? 1 : 0;
 	
 	int kchan_flags[4] = {

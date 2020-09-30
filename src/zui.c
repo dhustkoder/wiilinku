@@ -1025,7 +1025,11 @@ static void draw_text_line(const char* line, struct rgb24* dest)
 	while (*line != '\n' && *line != '\0') {
 		char c = *line;
 
-		WLU_ASSERT(c >= 32 && c <= 126);
+		// WLU_ASSERT(c >= 32 && c <= 126);
+		if (c < 32 || c > 126) {
+			++line;
+			continue;
+		}
 		
 		c -= 32;
 
