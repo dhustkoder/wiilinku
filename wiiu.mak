@@ -62,10 +62,10 @@ INCLUDES	:=	src src/wiiu
 #-------------------------------------------------------------------------------
 CFLAGS   := -D__WIIU__ -D__WUT__ -DWLU_CLIENT \
 	-DWLU_VERSION_STR=\"$(WLU_VERSION_STR)\" \
-	$(INCLUDE) $(MACHDEP) -Wall -Wextra  -ffunction-sections
+	$(INCLUDE) $(MACHDEP) -Wall -Wextra 
 
 ifeq ($(BUILD_TYPE),Release)
-CFLAGS	 +=	-O2 -DNDEBUG -DWLU_RELEASE
+CFLAGS	 +=	-O2 -DNDEBUG -DWLU_DEBUG
 else
 CFLAGS   += -O0 -g -DDEBUG -DWLU_DEBUG
 endif

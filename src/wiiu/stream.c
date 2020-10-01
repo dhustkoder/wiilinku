@@ -1,4 +1,6 @@
 #if 0
+
+
 #include <time.h>
 
 #include <libavutil/opt.h>
@@ -11,6 +13,7 @@
 #include <libavutil/pixdesc.h>
 
 #include "base_defs.h"
+#include "log.h"
 
 #define WIDTH  (1280)
 #define HEIGHT (720)

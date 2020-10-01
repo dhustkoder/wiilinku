@@ -132,8 +132,10 @@ int main(void)
 	if (!platform_init())
 		return EXIT_FAILURE;
 
+	//stream_decoder_init();
 	while (WHBProcIsRunning()) {
 
+		//stream_update();
 		// OSTick t = OSGetSystemTick();
 		if (!gui_update(&entered_ip)) {
 			break;
@@ -143,6 +145,7 @@ int main(void)
 
 	}
 
+	//stream_decoder_term();
 	platform_term();
 
 	return EXIT_SUCCESS;
