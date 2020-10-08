@@ -6,5 +6,6 @@ bool render_init(void);
 void render_term(void);
 void render_write_texture(void* data);
 void render_flush_n_wait_vsync(void);
+void render_switch_drc(void);
 
 #endif

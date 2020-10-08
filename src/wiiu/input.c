@@ -74,7 +74,7 @@ void input_term(void)
 	VPADShutdown();
 }
 
-void input_update(struct input_packet* input)
+bool input_update(struct input_packet* input)
 {	
 	VPADRead(VPAD_CHAN_0, &vpad, 1, &verror);
 	VPADGetTPCalibratedPoint(VPAD_CHAN_0, &vpad.tpNormal, &vpad.tpNormal);
@@ -110,7 +110,8 @@ void input_update(struct input_packet* input)
 		}
 	}
 
-	input_fetch(input);
+	
+	return input_fetch(input);
 }
 
 void input_update_feedback(const struct input_feedback_packet* fb)
@@ -129,9 +130,13 @@ void input_update_feedback(const struct input_feedback_packet* fb)
 	}
 }
 
-void input_fetch(struct input_packet* input)
+bool input_fetch(struct input_packet* input)
 {
-	memcpy(input, &last_input, sizeof *input);
+	if (memcmp(input, &last_input, sizeof *input) != 0) {
+		memcpy(input, &last_input, sizeof *input);
+		return true;
+	}
+	return false;
 }
 
 

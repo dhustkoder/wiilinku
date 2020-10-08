@@ -8,6 +8,7 @@
 #include <gx2r/buffer.h>
 #include <string.h>
 #include <stdio.h>
+#include <input.h>
 #include <whb/gfx.h>
 
 #include <coreinit/memdefaultheap.h>
@@ -36,11 +37,13 @@ static const float tex_coord_vb[] = {
 	0.0f, 0.0f,
 };
 
-GX2Texture texture = {0};
-GX2RBuffer position_buffer = { 0 };
-GX2RBuffer tex_coord_buffer = { 0 };
-WHBGfxShaderGroup group = { 0 };
-GX2Sampler sampler;
+static GX2Texture texture =  { 0 };
+static GX2RBuffer position_buffer = { 0 };
+static GX2RBuffer tex_coord_buffer = { 0 };
+static WHBGfxShaderGroup group = { 0 };
+static GX2Sampler sampler;
+static bool drc_state;
+
 
 
 bool render_init(void)
@@ -110,6 +113,7 @@ bool render_init(void)
 
 	GX2InitSampler(&sampler, GX2_TEX_CLAMP_MODE_CLAMP, GX2_TEX_XY_FILTER_MODE_LINEAR);
 	GX2SetSwapInterval(3);
+	drc_state = true;
 
 	return true;
 }
@@ -155,23 +159,29 @@ void render_flush_n_wait_vsync(void)
 	
 	WHBGfxFinishRenderTV();
 
-	WHBGfxBeginRenderDRC();
+	if (drc_state) {
+		WHBGfxBeginRenderDRC();
 
-	WHBGfxClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	GX2SetFetchShader(&group.fetchShader);
-	GX2SetVertexShader(group.vertexShader);
-	GX2SetPixelShader(group.pixelShader);
-	GX2RSetAttributeBuffer(&position_buffer, 0, position_buffer.elemSize, 0);
-	GX2RSetAttributeBuffer(&tex_coord_buffer, 1, tex_coord_buffer.elemSize, 0);
+		WHBGfxClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		GX2SetFetchShader(&group.fetchShader);
+		GX2SetVertexShader(group.vertexShader);
+		GX2SetPixelShader(group.pixelShader);
+		GX2RSetAttributeBuffer(&position_buffer, 0, position_buffer.elemSize, 0);
+		GX2RSetAttributeBuffer(&tex_coord_buffer, 1, tex_coord_buffer.elemSize, 0);
 
-	GX2SetPixelTexture(&texture, group.pixelShader->samplerVars[0].location);
-	GX2SetPixelSampler(&sampler, group.pixelShader->samplerVars[0].location);
-	GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, 4, 0, 1);
+		GX2SetPixelTexture(&texture, group.pixelShader->samplerVars[0].location);
+		GX2SetPixelSampler(&sampler, group.pixelShader->samplerVars[0].location);
+		GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, 4, 0, 1);
 
-	WHBGfxFinishRenderDRC();
+		WHBGfxFinishRenderDRC();
+	}
 
 	WHBGfxFinishRender();
 }
 
 
-
+void render_switch_drc(void)
+{
+	drc_state = !drc_state;
+	VPADSetLcdMode(VPAD_CHAN_0, drc_state ? VPAD_LCD_ON : VPAD_LCD_OFF);
+}

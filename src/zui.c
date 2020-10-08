@@ -18,7 +18,7 @@
 #define CHARS_PER_LINE (CHARSET_W / CHAR_W)
 
 
-static const uint8_t hborder_data[] = (
+static const u8 hborder_data[] = (
 	"\000\253\000\203\323\023\000G\000\000G\000\000G\000\000\253\000\000\253\000\005\005\005\005\005\005\005\005\005\000\253"
 	"\000\000G\000\000G\000\005\005\005\005\005\005\005\005\005\203\323\023\000G\000\000G\000\203\323\023\000G\000\000\253"
 	"\000\005\005\005\005\005\005\005\005\005\000\253\000\000G\000\000G\000\203\323\023\000\253\000\000\253\000\005\005\005\000"
@@ -32,7 +32,7 @@ static const uint8_t hborder_data[] = (
 	"\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005\005" 
 );
 
-static const uint8_t vborder_data[] = (
+static const u8 vborder_data[] = (
 	"\000G\000\000G\000\005\005\005\000G\000\203\323\023\000\253\000\005\005\005\000\253\000\005\005\005\203\323\023\000"
 	"G\000\000G\000\000\253\000\000\253\000\203\323\023\203\323\023\000\253\000\000\253\000\000G\000\000\253"
 	"\000\005\005\005\203\323\023\005\005\005\005\005\005\005\005\005\000G\000\000\253\000\000\253\000\005\005\005\000\253\000"
@@ -51,7 +51,7 @@ static const uint8_t vborder_data[] = (
 	"\000G\000\203\323\023\000\253\000\000\253\000\005\005\005"
 );
 
-static const uint8_t charset_data[] = (
+static const u8 charset_data[] = (
 	"\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
 	"\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
 	"\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
@@ -829,7 +829,7 @@ static const uint8_t charset_data[] = (
 
 
 
-typedef uint8_t zui_cmd_type;
+typedef u8 zui_cmd_type;
 enum zui_cmd_id {
 	ZUI_CMD_TYPE_CLEAR,
 	ZUI_CMD_TYPE_DRAW_BORDERS,
@@ -856,7 +856,7 @@ static int objs_idxs_cnt = 0;
 static int objs_idxs[ZUI_MAX_OBJS];
 
 static int objs_buffer_size = 0;
-static uint8_t objs_buffer[ZUI_OBJS_BUFFER_MAX_SIZE];
+static u8 objs_buffer[ZUI_OBJS_BUFFER_MAX_SIZE];
 
 
 static int get_next_mem_aligned_value(int x)
@@ -1053,7 +1053,8 @@ static void draw_text_line(const char* line, struct rgb24* dest)
 
 static void draw_text(zui_obj_id_t id, struct rgb24* fb)
 {	
-	struct text_obj* obj = zui_obj_get(id);
+	struct text_obj* const obj = zui_obj_get(id);
+
 	const char* str = obj->str;
 	const int longest_line_len = str_longest_line_len(str);
 	const int lines = str_cnt_lines(str);
@@ -1125,6 +1126,20 @@ void zui_text_draw(const zui_obj_id_t id)
 void zui_text_erase(zui_obj_id_t id)
 {
 	zui_cmd_push(id, ZUI_CMD_TYPE_ERASE_TEXT);
+}
+
+zui_obj_id_t zui_btn_create(
+	struct vec2i origin,
+	const char* label,
+	zui_btn_clbk_fn_t clbk
+)
+{
+
+}
+
+void zui_btn_draw(zui_obj_id_t id)
+{
+
 }
 
 bool zui_update(void)

@@ -62,17 +62,12 @@ static int input_manager_thread(
 	struct input_packet input;
 
 	while (!terminate_threads) {
-		input_update(&input);
-
-		if (connection_is_connected()) {
+		if (input_update(&input))
 			connection_send_input_packet(&input);
+		if (connection_receive_input_feedback_packet(&feedback))
+			input_update_feedback(&feedback);
 
-			if (connection_receive_input_feedback_packet(&feedback)) {
-				input_update_feedback(&feedback);
-			}
-		}
-
-		OSSleepTicks(OSMillisecondsToTicks(6));
+		OSSleepTicks(OSMillisecondsToTicks(4));
 	}
 
 	return 0;

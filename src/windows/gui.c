@@ -19,38 +19,38 @@ struct gui_text gui_header_txts[] = {
 		.str = "WiiLinkU " WLU_VERSION_STR
 	},
 	{
-		.origin = { .x = ZUI_WIDTH / 2, .y = 44 },
+		.origin = { .x = ZUI_WIDTH / 2, .y = 54 },
 		.str = "Loading local IP..."
 	},
 	{
-		.origin = { .x = ZUI_WIDTH / 2, .y = 64 },
+		.origin = { .x = ZUI_WIDTH / 2, .y = ZUI_HEIGHT / 2 },
 		.str = "Connection Status: Not Connected"
 	}
 };
 
 struct gui_text gui_joy_txts[] = {
 	{
-		.origin = { .x = 96, .y = 128 },
+		.origin = { .x = 96, .y = 128 + 80 },
 		.str = "Controllers Connected: 0"
 	},
 	{
-		.origin = { .x = 96, .y = 138 },
+		.origin = { .x = 96, .y = 138 + 80 },
 		.str = "WiiU Gamepad"
 	},
 	{
-		.origin = { .x = 96, .y = 148 },
+		.origin = { .x = 96, .y = 148 + 80 },
 		.str = "Wiimote 1"
 	},
 	{
-		.origin = { .x = 96, .y = 158 },
+		.origin = { .x = 96, .y = 158 + 80 },
 		.str = "Wiimote 2"
 	},
 	{
-		.origin = { .x = 96, .y = 168 },
+		.origin = { .x = 96, .y = 168 + 80 },
 		.str = "Wiimote 3"
 	},
 	{
-		.origin = { .x = 96, .y = 178 },
+		.origin = { .x = 96, .y = 178 + 80 },
 		.str = "Wiimote 4"
 	},
 };
@@ -194,7 +194,7 @@ void gui_set_local_ip_string(const char* ip)
 {
 	char buf[64];
 	if (ip != NULL)
-		sprintf(buf, "Your IP: %s", ip);
+		sprintf(buf, "Your Host IP Address is: %s", ip);
 	else
 		sprintf(buf, "Couldn't load your local IP. Try ipconfig");
 

@@ -7,9 +7,9 @@
 
 extern void input_init(void);
 extern void input_term(void);
-extern void input_fetch(struct input_packet* input); /* thread-safe */
+extern bool input_fetch(struct input_packet* input); /* thread-safe */
 extern void input_fetch_vpad(VPADStatus* target); /* thread-safe */
-extern void input_update(struct input_packet* input);
+extern bool input_update(struct input_packet* input);
 extern void input_update_feedback(const struct input_feedback_packet* fb);
 
 
